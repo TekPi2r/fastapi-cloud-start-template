@@ -32,7 +32,7 @@ jobs:
 
     - name: Lint with Ruff
       run: |
-        ruff check app tests
+        ruff check app tests --fix
 
     - name: Wait for MongoDB to be ready
       run: |
