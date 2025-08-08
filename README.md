@@ -1,77 +1,74 @@
-# 🚀 fastapi-cloud-start-template
+# fastapi-cloud-start-template
 
-Un template FastAPI moderne avec MongoDB, Docker, CI/CD et infrastructure multi-cloud (AWS & Azure), prêt à l'emploi pour projets DevSecOps.
+A production-ready and extensible FastAPI template designed for cloud deployment. This project integrates key DevOps practices with a modern microservice backend architecture using Docker, MongoDB, and CI/CD pipelines, and is built for seamless deployment on both AWS and Azure.
 
-## ✨ Features
+## 🚀 Features
 
-- ⚙️ **FastAPI** backend prêt à l'emploi
-- 🗄️ **MongoDB** comme base de données NoSQL
-- 🐳 **Docker & Docker Compose** pour l'environnement de développement et de production
-- 🔁 **CI/CD avec GitHub Actions**
-- ☁️ **Prêt pour déploiement sur AWS (EC2/S3) & Azure (App Service/Storage)**
-- 📦 **Infrastructure as Code (Terraform)** pour provisioning cloud
-- 🔐 **Sécurité : Scans de vulnérabilités (Trivy ou Snyk)**
-- 📊 **Monitoring (Grafana + Prometheus)** [optionnel]
-- 📄 Code bien structuré et réutilisable
+- ⚡ FastAPI backend (async Python web framework)
+- 🐳 Docker & Docker Compose
+- 🗄️ MongoDB integration (with Docker)
+- 🔁 GitHub Actions CI/CD pipeline
+- ☁️ Dual cloud deployment support:
+  - AWS EC2 or ECS
+  - Azure App Service or Azure Container Instances
+- 🔐 Security Scanning (Trivy or Snyk) [optional]
+- 📈 Monitoring & Logging with Prometheus + Grafana [optional]
+- ⚙️ Infrastructure as Code with Terraform [optional]
+- 🧪 Unit & Integration testing (pytest) [coming soon]
 
-## 📁 Structure du projet
+## 📦 Stack
 
-```
-fastapi-cloud-start-template/
-├── app/                    # Code source FastAPI
-├── docker/                 # Fichiers liés à Docker et docker-compose
-├── .github/workflows/      # Pipelines GitHub Actions CI/CD
-├── infra/                  # Fichiers Terraform pour AWS & Azure
-├── tests/                  # Tests unitaires
-├── .env.example            # Variables d'environnement
-├── Dockerfile              # Image de l’application FastAPI
-├── docker-compose.yml      # Orchestration locale
-└── README.md
-```
+| Category           | Technology               |
+|--------------------|---------------------------|
+| Backend API        | FastAPI (Python)         |
+| Database           | MongoDB                  |
+| Containerization   | Docker                   |
+| Orchestration      | Kubernetes (optional)    |
+| CI/CD              | GitHub Actions (+ Jenkins optional) |
+| Cloud Providers    | AWS (EC2, S3) + Azure (App Service, Storage) |
+| IaC                | Terraform (optional)     |
+| Security           | Trivy or Snyk (optional) |
+| Monitoring         | Prometheus + Grafana (optional) |
 
-## 🚀 Lancer le projet en local
+## 🧰 Getting Started
 
-1. Copier le fichier `.env.example` en `.env` et compléter les variables.
-2. Lancer l’environnement via Docker Compose :
+### Prerequisites
+
+- Docker & Docker Compose
+- Python 3.10+
+- GitHub account for CI/CD
+- (Optional) AWS CLI or Azure CLI installed & configured
+
+### Installation
 
 ```bash
+git clone https://github.com/your-username/fastapi-cloud-start-template.git
+cd fastapi-cloud-start-template
+cp .env.example .env
 docker-compose up --build
 ```
 
-3. L’API sera disponible sur `http://localhost:8000/docs`
+### Running the app
 
-## 🧪 Exécuter les tests
+By default, the API will run on `http://localhost:8000`.
 
-```bash
-docker-compose exec app pytest
-```
+### Documentation
 
-## 🔐 Scans de sécurité (optionnel)
+Visit Swagger UI: `http://localhost:8000/docs`
 
-```bash
-trivy image fastapi-app
-# ou
-snyk test --docker fastapi-app
-```
+## 🚧 Work in Progress
 
-## ☁️ Déploiement Cloud (à venir)
+This template is under active development. Future plans include:
 
-- AWS (EC2 / ECS / S3)
-- Azure App Services
-- Terraform pour provisioning
+- Helm charts for Kubernetes
+- More Terraform modules
+- Advanced logging and alerting setup
+- Advanced test coverage and GitHub badges
 
-## 🤝 Contribuer
+## 🤝 Contributing
 
-1. Fork le repo
-2. Crée une branche : `git checkout -b feature/ma-feature`
-3. Commit : `git commit -am 'Ajout nouvelle feature'`
-4. Push : `git push origin feature/ma-feature`
-5. Pull Request !
+Contributions are welcome! Fork the repo, create a feature branch and submit a pull request.
 
-## 🧑‍💻 Auteur
+## 📄 License
 
-Pierre Dallara – [LinkedIn](https://www.linkedin.com/in/pierre-dallara/)
-
----
-
-> Ce projet est en cours de construction et évoluera vers un modèle de template open-source complet, incluant CI/CD, sécurité et cloud.
+This project is licensed under the MIT License.
