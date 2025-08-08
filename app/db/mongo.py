@@ -1,9 +1,8 @@
 # app/db/mongo.py
 
 from pymongo import MongoClient
-import os
+from app.core.config import settings
 
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-client = MongoClient(MONGO_URL)
-db = client["mydatabase"]
+client = MongoClient(settings.MONGO_URL)
+db = client[settings.DATABASE_NAME]
 items_collection = db["items"]
