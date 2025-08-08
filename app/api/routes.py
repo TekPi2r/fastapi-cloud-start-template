@@ -1,6 +1,6 @@
 # app/api/routes.py
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
 from app.db.mongo import items_collection
