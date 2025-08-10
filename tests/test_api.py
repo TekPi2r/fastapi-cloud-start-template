@@ -1,51 +1,55 @@
+# tests/test_api.py
+import os
+import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.db import users_collection, items_collection
+from app.db.mongo import users_collection, items_collection
+
+# Forcer une conf locale de test si besoin
+os.environ.setdefault("MONGO_URL", "mongodb://localhost:27017")
+os.environ.setdefault("DATABASE_NAME", "mydatabase")
 
 client = TestClient(app)
 
-TEST_USER = {
-    "username": "testuser",
-    "password": "testpassword"
-}
+TEST_USER = {"username": "testuser", "password": "testpassword", "full_name": "Tester"}
+TEST_ITEM = {"name": "OAuth Item", "description": "Created via test"}
 
-def create_test_user():
-    # Simule l'enregistrement de l'utilisateur
-    response = client.post("/register", json=TEST_USER)
-    assert response.status_code == 200
-
-def delete_test_user():
+@pytest.fixture(autouse=True)
+def clean_db():
+    # Avant chaque test
     users_collection.delete_one({"username": TEST_USER["username"]})
+    items_collection.delete_many({"name": TEST_ITEM["name"]})
+    yield
+    # Après chaque test
+    users_collection.delete_one({"username": TEST_USER["username"]})
+    items_collection.delete_many({"name": TEST_ITEM["name"]})
 
 def get_auth_headers():
-    response = client.post("/token", data=TEST_USER)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
+    # 1) register
+    r = client.post("/register", json=TEST_USER)
+    assert r.status_code in (200, 400)  # 400 si déjà créé
+    # 2) login (x-www-form-urlencoded)
+    login_data = {"username": TEST_USER["username"], "password": TEST_USER["password"]}
+    token_resp = client.post("/token", data=login_data)
+    assert token_resp.status_code == 200
+    token = token_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-def test_full_oauth_flow():
-    # Cleanup avant
-    delete_test_user()
-    items_collection.delete_many({"name": "OAuth Item"})
+def test_health_check():
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
 
-    # 1. Création de l'utilisateur
-    create_test_user()
-
-    # 2. Authentification et récupération du token
+def test_full_oauth_and_items_crud():
     headers = get_auth_headers()
 
-    # 3. Utilisation du token pour accéder aux routes sécurisées
-    item_data = {"name": "OAuth Item", "description": "Created via test"}
-    response = client.post("/items", json=item_data, headers=headers)
-    assert response.status_code == 200
-    assert response.json() == item_data
+    # create
+    r = client.post("/items", json=TEST_ITEM, headers=headers)
+    assert r.status_code == 200
+    assert r.json() == TEST_ITEM
 
-    # 4. Lecture des items
-    response = client.get("/items", headers=headers)
-    assert response.status_code == 200
-    items = response.json()
-    assert any(item["name"] == "OAuth Item" for item in items)
-
-    # 5. Nettoyage après test
-    items_collection.delete_many({"name": "OAuth Item"})
-    delete_test_user()
+    # list
+    r = client.get("/items", headers=headers)
+    assert r.status_code == 200
+    items = r.json()
+    assert any(i["name"] == TEST_ITEM["name"] for i in items)
