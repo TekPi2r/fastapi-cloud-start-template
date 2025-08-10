@@ -3,3 +3,9 @@ uvicorn[standard]
 pymongo
 pytest
 python-dotenv
+pydantic
+ruff
+python-jose[cryptography]
+passlib[bcrypt]
+httpx
+python-multipart
