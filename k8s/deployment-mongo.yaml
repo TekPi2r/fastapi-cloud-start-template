@@ -12,14 +12,44 @@ spec:
       labels:
         app: mongo
     spec:
+      securityContext:
+        fsGroup: 999          # mongodb user in the official image
+        runAsNonRoot: true
       containers:
-      - name: mongo
-        image: mongo:latest
-        ports:
-        - containerPort: 27017
-        volumeMounts:
-        - name: mongo-data
-          mountPath: /data/db
+        - name: mongo
+          image: mongo:7.0     # <-- avoid :latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 27017
+          args: ["--bind_ip_all"]
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+          # Probes
+          startupProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand({ ping: 1 })"]
+            failureThreshold: 30   # ~150s max (30 * 5s)
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand({ ping: 1 })"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          livenessProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand({ ping: 1 })"]
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
       volumes:
-      - name: mongo-data
-        emptyDir: {}
+        - name: mongo-data
+          emptyDir: {}
