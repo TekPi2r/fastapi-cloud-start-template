@@ -5,9 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Nécessaire pour uploader le SARIF dans l'onglet Security
 permissions:
   contents: read
-  security-events: write   # <- nécessaire pour upload SARIF
+  security-events: write
   actions: read
 
 jobs:
@@ -18,41 +19,57 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build docker image (local tag)
         run: docker build -t fastapi-template:ci .
 
-      # Installe la CLI trivy pour les steps suivants
+      # Installe la CLI Trivy (version stable)
       - name: Setup Trivy CLI
-        uses: aquasecurity/setup-trivy@v0
+        uses: aquasecurity/setup-trivy@v0.2.3
 
-      # 1) Affichage rapide dans les logs (table)
-      - name: Trivy (table in logs)
+      # Affiche un résumé dans les logs (n'échoue pas le job pour l'instant)
+      - name: Trivy (summary in logs)
         run: |
-          trivy image --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
-            --format table fastapi-template:ci
+          trivy image \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --format table \
+            fastapi-template:ci
 
-      # 2) Génère un rapport JSON pour artefact
-      - name: Trivy JSON report
+      # Télécharge le template HTML officiel de Trivy
+      - name: Fetch Trivy HTML template
         run: |
-          trivy image --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
-            --format json -o trivy-report.json fastapi-template:ci
+          curl -sSLo trivy-html.tpl https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
 
-      - name: Upload JSON artifact
+      # Génére le rapport HTML
+      - name: Generate Trivy HTML report
+        run: |
+          trivy image \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --format template \
+            --template "@trivy-html.tpl" \
+            -o trivy-report.html \
+            fastapi-template:ci
+
+      # Génére le rapport SARIF (pour l’onglet Security)
+      - name: Generate Trivy SARIF report
+        run: |
+          trivy image \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --format sarif \
+            -o trivy-report.sarif \
+            fastapi-template:ci
+
+      # Upload l’HTML comme artifact téléchargeable
+      - name: Upload HTML artifact
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-json
-          path: trivy-report.json
+          name: trivy-html
+          path: trivy-report.html
           retention-days: 7
 
-      # 3) (Optionnel) Génère SARIF et pousse dans l'onglet Security
-      - name: Trivy SARIF report
-        run: |
-          trivy image --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
-            --format sarif -o trivy-report.sarif fastapi-template:ci
-
+      # Envoie le SARIF dans Security → Code scanning alerts
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
