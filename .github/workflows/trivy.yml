@@ -1,0 +1,59 @@
+name: Trivy Scan
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build docker image (local tag)
+      run: |
+        docker build -t fastapi-template:ci .
+
+    - name: Run Trivy (table in logs + JSON + HTML)
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        image-ref: 'fastapi-template:ci'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        ignore-unfixed: true
+        format: 'table'
+        exit-code: '0'  # ne casse pas la CI tant que tu explores
+        output: ''      # vide = affichage dans les logs
+
+    - name: Trivy JSON report
+      run: |
+        trivy image --quiet --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
+          --format json -o trivy-report.json fastapi-template:ci
+        trivy image --quiet --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
+          --format template --template "@contrib/html.tpl" -o trivy-report.html fastapi-template:ci
+      env:
+        TRIVY_SKIP_DB_UPDATE: false
+
+    - name: Upload Trivy reports (Artifacts)
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-reports
+        path: |
+          trivy-report.json
+          trivy-report.html
+        retention-days: 7
+
+    # --- Optionnel : pousser en Security / Code scanning (SARIF) ---
+    - name: Trivy SARIF report (optional)
+      if: ${{ always() }}
+      run: trivy image --quiet --format sarif -o trivy-report.sarif fastapi-template:ci
+    - name: Upload SARIF to GitHub (optional)
+      if: ${{ always() }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-report.sarif
