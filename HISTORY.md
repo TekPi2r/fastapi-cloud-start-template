@@ -1,6 +1,6 @@
 # Project History
 
-## Version 1.0.0 - Initial Setup (2025-08-08)
+## 1️⃣ Version 1.0.0 - Initial Setup (2025-08-08)
 
 ### ✅ Backend Features
 - Initialized project with **FastAPI**
@@ -45,3 +45,15 @@
 - Prepare for deployment (Azure, AWS, or other)
 - Write full `README.md`
 
+
+
+
+## 2️⃣ Version 2.0.0 - Kubernetes and CI overhaul (2025-08-11)
+
+- Switched to Alpine Docker image, non-root user, and healthcheck.
+- Added Kubernetes manifests (API + Mongo, ConfigMap/Secret, probes).
+- Introduced Makefile with handy targets: `dev`, `tests`, `tests-integration`, `logs`, `clean`.
+- Split pytest into unit vs integration with markers and `pytest.ini` env.
+- Added GitHub Actions pipeline: unit & integration jobs; Mongo as a service for integration.
+- Wired secrets/config: `.env` (optional), `pytest.ini` (CI), `k8s/secret.yaml` + `k8s/config.yaml` (cluster).
+- Documented Trivy usage for image scanning.

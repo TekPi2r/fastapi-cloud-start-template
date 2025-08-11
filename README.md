@@ -1,74 +1,116 @@
-# fastapi-cloud-start-template
+# 🚀 FastAPI Cloud Start Template
 
-A production-ready and extensible FastAPI template designed for cloud deployment. This project integrates key DevOps practices with a modern microservice backend architecture using Docker, MongoDB, and CI/CD pipelines, and is built for seamless deployment on both AWS and Azure.
+[![CI](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/ci.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions) [![Trivy](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/trivy.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/python-3.11-blue.svg) ![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg) ![Kubernetes](https://img.shields.io/badge/Kubernetes-local--dev-blueviolet.svg)
 
-## 🚀 Features
+A modern production-ready **FastAPI** template with:
+- **OAuth2 JWT authentication**
+- **MongoDB** persistence
+- **Docker** + **Kubernetes (Minikube)** local dev workflow
+- **Pytest** for unit & integration tests
+- **Trivy** security scanning
+- **GitHub Actions** CI/CD
 
-- ⚡ FastAPI backend (async Python web framework)
-- 🐳 Docker & Docker Compose
-- 🗄️ MongoDB integration (with Docker)
-- 🔁 GitHub Actions CI/CD pipeline
-- ☁️ Dual cloud deployment support:
-  - AWS EC2 or ECS
-  - Azure App Service or Azure Container Instances
-- 🔐 Security Scanning (Trivy or Snyk) [optional]
-- 📈 Monitoring & Logging with Prometheus + Grafana [optional]
-- ⚙️ Infrastructure as Code with Terraform [optional]
-- 🧪 Unit & Integration testing (pytest) [coming soon]
+---
 
-## 📦 Stack
+## 📦 Features
 
-| Category           | Technology               |
-|--------------------|---------------------------|
-| Backend API        | FastAPI (Python)         |
-| Database           | MongoDB                  |
-| Containerization   | Docker                   |
-| Orchestration      | Kubernetes (optional)    |
-| CI/CD              | GitHub Actions (+ Jenkins optional) |
-| Cloud Providers    | AWS (EC2, S3) + Azure (App Service, Storage) |
-| IaC                | Terraform (optional)     |
-| Security           | Trivy or Snyk (optional) |
-| Monitoring         | Prometheus + Grafana (optional) |
+- **Authentication**: OAuth2 password flow with JWT
+- **Database**: MongoDB (Docker/K8s)
+- **Containerization**: Alpine-based Dockerfile, non-root user, healthcheck
+- **Orchestration**: Kubernetes manifests for API & Mongo
+- **Security**: Trivy scan in CI
+- **Testing**: pytest with `unit` & `integration` markers
+- **Local Dev**: Minikube image loading (no external registry needed)
 
-## 🧰 Getting Started
+---
 
-### Prerequisites
+## 🛠️ Architecture
 
-- Docker & Docker Compose
-- Python 3.10+
-- GitHub account for CI/CD
-- (Optional) AWS CLI or Azure CLI installed & configured
-
-### Installation
-
-```bash
-git clone https://github.com/your-username/fastapi-cloud-start-template.git
-cd fastapi-cloud-start-template
-cp .env.example .env
-docker-compose up --build
+```text
++-------------------+        +-------------------+
+| FastAPI (Uvicorn) | <----> |   MongoDB (K8s)   |
+|  OAuth2 + JWT     |        | Persistent Store  |
++-------------------+        +-------------------+
+        |                             ^
+        v                             |
+   Pytest / CI/CD                Trivy Security
 ```
 
-### Running the app
+---
 
-By default, the API will run on `http://localhost:8000`.
+## 🚀 Quick Start
 
-### Documentation
+### 1️⃣ Local Dev with Kubernetes
+```bash
+make dev
+```
+- Builds Docker image
+- Loads into Minikube
+- Applies K8s manifests
+- Restarts deployment & shows service URL
 
-Visit Swagger UI: `http://localhost:8000/docs`
+### 2️⃣ View logs
+```bash
+make logs
+```
 
-## 🚧 Work in Progress
+### 3️⃣ Run tests
+```bash
+make tests         # all tests
+make tests-int     # integration tests only
+```
 
-This template is under active development. Future plans include:
+---
 
-- Helm charts for Kubernetes
-- More Terraform modules
-- Advanced logging and alerting setup
-- Advanced test coverage and GitHub badges
+## 🧪 Testing
 
-## 🤝 Contributing
+We use **pytest** with markers:
+- `unit` → isolated tests (no DB)
+- `integration` → DB/API tests
 
-Contributions are welcome! Fork the repo, create a feature branch and submit a pull request.
+Example:
+```bash
+pytest -m integration -v
+```
 
-## 📄 License
+---
 
-This project is licensed under the MIT License.
+## 🔐 Secrets Management
+
+- **Local dev** → `.env` file (loaded by `pydantic.BaseSettings`)
+- **K8s** → `secret.yaml` & `config.yaml` (env vars in cluster)
+- CI → Secrets injected via GitHub Actions environment variables
+
+---
+
+## 📦 Makefile Commands
+
+| Command         | Description                              |
+|-----------------|------------------------------------------|
+| `make dev`      | Build, load, apply K8s, restart, URL     |
+| `make build`    | Build Docker image                       |
+| `make load`     | Load image into Minikube                 |
+| `make k8s`      | Apply Kubernetes manifests               |
+| `make restart`  | Restart API deployment                   |
+| `make logs`     | Follow API logs                          |
+| `make tests`    | Run all tests                            |
+| `make tests-int`| Run integration tests only               |
+| `make clean`    | Remove all K8s resources                 |
+
+---
+
+## 🛡️ Security Scanning
+
+Run locally:
+```bash
+trivy image fastapi-template:latest
+```
+
+In CI:
+- Scans image
+- Outputs SARIF & HTML reports
+
+---
+
+## 📜 License
+MIT License. See [LICENSE](LICENSE).
