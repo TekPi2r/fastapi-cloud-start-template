@@ -5,7 +5,7 @@ pytest
 python-dotenv
 pydantic
 ruff
-python-jose[cryptography]
+PyJWT==2.9.0
 passlib[bcrypt]
 httpx
 python-multipart

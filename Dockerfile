@@ -1,11 +1,12 @@
-# Dockerfile (extrait)
+# Dockerfile
 FROM python:3.11-slim
 
-# (optionnel) OS updates minimaux
-RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+# OS updates (limités) + nettoyage
+RUN apt-get update \
+ && apt-get -y upgrade --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
-# 🔧 Corrige les CVE Python en upgradeant pip/setuptools/wheel
+# Corrige pip/setuptools/wheel (évite CVE setuptools < 78.1.1)
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 WORKDIR /app
