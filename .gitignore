@@ -7,3 +7,4 @@ mongo-data/
 *.pytest_cache
 *.venv/
 *.ruff_cache
+!.env.sample

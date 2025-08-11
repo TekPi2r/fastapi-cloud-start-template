@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 pymongo
 pytest
+pytest-env==1.1.3
 python-dotenv
 pydantic
 ruff
@@ -9,3 +10,4 @@ PyJWT==2.9.0
 passlib[bcrypt]
 httpx
 python-multipart
+

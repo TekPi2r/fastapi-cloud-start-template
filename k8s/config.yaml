@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-config
+data:
+  MONGO_URL: "mongodb://mongo-service:27017"
+  DATABASE_NAME: "mydatabase"
