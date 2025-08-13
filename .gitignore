@@ -1,10 +1,60 @@
+# --- Python ---
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# --- Environnements ---
 .env
 .env.*
-.vscode/
-mongo-data/
-*.pytest_cache
-*.venv/
-*.ruff_cache
 !.env.sample
+*.venv/
+*.ruff_cache/
+
+# --- VSCode / IDE ---
+.vscode/
+.idea/
+
+# --- MongoDB ---
+mongo-data/
+
+# --- Tests ---
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Terraform ---
+# Terraform (anywhere inside infra/)
+infra/**/.terraform/
+infra/**/.terraform.lock.hcl
+infra/**/*.tfstate
+infra/**/*.tfstate.*
+infra/**/*.tfvars
+infra/**/crash.log
+infra/**/override.tf
+infra/**/override.tf.json
+infra/**/*_override.tf
+infra/**/*_override.tf.json
+
+**/.terraform/               # Plugin cache (any depth)
+**/.terraform.lock.hcl        # Provider lock file
+**/*.tfstate                  # State file
+**/*.tfstate.*                # Backup state files
+**/*.tfvars                   # Variable definitions (secrets)
+**/crash.log                  # Terraform crash log
+**/override.tf                # Local override files
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# --- Docker ---
+*.log
+docker-compose.override.yml
+
+# --- MacOS / OS generated ---
+.DS_Store
+Thumbs.db
+
+# --- Private notes and scripts ---
+notesperso.md
+nuke.sh

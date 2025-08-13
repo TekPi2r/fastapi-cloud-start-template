@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Mises à jour + Docker
+yum update -y
+amazon-linux-extras install docker -y || yum install -y docker
+systemctl enable --now docker
+
+# Connexion à ECR
+aws ecr get-login-password --region ${region} \
+  | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.${region}.amazonaws.com
+
+# Image à lancer
+IMAGE_URI="${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_repo_name}:${image_tag}"
+
+# Pull (si l'image n'existe pas encore, c'est ok, l'instance réessaiera au restart)
+docker pull "$IMAGE_URI" || true
+
+# Redémarre proprement le conteneur
+docker rm -f fastapi || true
+
+# Lancement : 80 -> 8000, logs -> CloudWatch
+docker run -d --name fastapi \
+  -p 80:8000 \
+  --restart=always \
+  --log-driver=awslogs \
+  --log-opt awslogs-region=${region} \
+  --log-opt awslogs-group=${log_group_name} \
+  --log-opt awslogs-create-group=true \
+  "$IMAGE_URI"
