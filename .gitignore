@@ -23,37 +23,39 @@ mongo-data/
 .coverage
 htmlcov/
 
-# --- Terraform ---
-# Terraform (anywhere inside infra/)
+# --- Terraform (global/anywhere) ---
 infra/**/.terraform/
-infra/**/.terraform.lock.hcl
 infra/**/*.tfstate
 infra/**/*.tfstate.*
-infra/**/*.tfvars
+infra/**/*.tfplan
 infra/**/crash.log
+infra/**/crash.*.log
 infra/**/override.tf
 infra/**/override.tf.json
 infra/**/*_override.tf
 infra/**/*_override.tf.json
 
-**/.terraform/               # Plugin cache (any depth)
-**/.terraform.lock.hcl        # Provider lock file
-**/*.tfstate                  # State file
-**/*.tfstate.*                # Backup state files
-**/*.tfvars                   # Variable definitions (secrets)
-**/crash.log                  # Terraform crash log
-**/override.tf                # Local override files
-**/override.tf.json
-**/*_override.tf
-**/*_override.tf.json
+# Variables locales (souvent sensibles)
+infra/**/*.tfvars
+infra/**/*.tfvars.json
+
+# 👉 NE PAS ignorer les lockfiles Terraform : à committer !
+!infra/**/.terraform.lock.hcl
 
 # --- Docker ---
 *.log
 docker-compose.override.yml
 
-# --- MacOS / OS generated ---
+# --- OS/IDE ---
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Scripts/outputs locaux (si tu en génères) ---
+*.local.sh
+*.secrets.*
 
 # --- Private notes and scripts ---
 notesperso.md
