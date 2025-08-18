@@ -20,7 +20,7 @@ locals {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "${var.name_prefix}-alb-sg"
+  name        = "${local.name}-alb-sg"
   description = "ALB ingress 80/443"
   vpc_id      = local.effective_vpc_id
 
@@ -59,7 +59,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "ecs_tasks" {
-  name        = "${var.name_prefix}-ecs-sg"
+  name        = "${local.name}-ecs-sg"
   description = "Allow app port from ALB"
   vpc_id      = local.effective_vpc_id
 
@@ -87,7 +87,7 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 resource "aws_lb" "app" {
-  name               = "${var.name_prefix}-alb"
+  name               = "${local.name}-alb"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = local.selected_subnets
@@ -100,7 +100,7 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = "${var.name_prefix}-tg"
+  name        = "${local.name}-tg"
   port        = 8000
   protocol    = "HTTP"
   target_type = "ip"

@@ -27,3 +27,8 @@ output "task_role_arn" {
   description = "IAM role assumed by the ECS task (app runtime)"
   value       = aws_iam_role.task_runtime.arn
 }
+
+output "exec_role_arn" {
+  description = "IAM role assumed by the ECS task (execution)"
+  value       = aws_iam_role.task_execution.arn
+}

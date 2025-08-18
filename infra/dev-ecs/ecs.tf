@@ -1,15 +1,10 @@
 resource "aws_ecs_cluster" "this" {
-  name = "${var.name_prefix}-cluster"
-
-  tags = {
-    Name        = var.name_prefix
-    ManagedBy   = "Terraform"
-    Environment = "dev"
-  }
+  name = "${local.name}-cluster"
+  tags = local.tags
 }
 
 resource "aws_ecs_task_definition" "api" {
-  family                   = "${var.name_prefix}-api"
+  family                   = "${local.name}-api"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = tostring(var.task_cpu)
@@ -40,17 +35,12 @@ resource "aws_ecs_task_definition" "api" {
       ]
     }
   ])
-
-  tags = {
-    Name        = "${var.name_prefix}-dev"
-    ManagedBy   = "Terraform"
-    Environment = "dev"
-  }
+  tags = local.tags
 }
 
 resource "aws_ecs_service" "api" {
-  name                   = "${var.name_prefix}-svc"
-  cluster                = aws_ecs_cluster.this.id
+  name                   = "${local.name}-svc"
+  cluster                = aws_ecs_cluster.this.arn
   task_definition        = aws_ecs_task_definition.api.arn
   desired_count          = var.desired_count
   launch_type            = "FARGATE"
@@ -80,9 +70,5 @@ resource "aws_ecs_service" "api" {
     aws_lb_listener.https
   ]
 
-  tags = {
-    Name        = var.name_prefix
-    ManagedBy   = "Terraform"
-    Environment = "dev"
-  }
+  tags = local.tags
 }

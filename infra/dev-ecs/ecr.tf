@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "api" {
-  name                 = var.ecr_repo_name
+  name                 = "${local.name}-ecr" # <- fastapi-dev-ecr
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -10,11 +10,10 @@ resource "aws_ecr_repository" "api" {
     encryption_type = "AES256"
   }
 
-  tags = {
-    Name        = var.name_prefix
-    ManagedBy   = "Terraform"
-    Environment = "dev"
-  }
+  # Optionnel pendant la transition/renommage : permet de détruire un repo non vide
+  # force_delete = true
+
+  tags = local.tags
 }
 
 resource "aws_ecr_lifecycle_policy" "keep_last_10" {

@@ -1,3 +1,4 @@
+# execution role + attachment
 data "aws_iam_policy_document" "task_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -9,14 +10,9 @@ data "aws_iam_policy_document" "task_assume" {
 }
 
 resource "aws_iam_role" "task_execution" {
-  name               = "${var.name_prefix}-ecs-task-exec"
+  name               = "${local.name}-ecs-task-exec"
   assume_role_policy = data.aws_iam_policy_document.task_assume.json
-
-  tags = {
-    Name        = var.name_prefix
-    ManagedBy   = "Terraform"
-    Environment = "dev"
-  }
+  tags               = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_exec_managed" {

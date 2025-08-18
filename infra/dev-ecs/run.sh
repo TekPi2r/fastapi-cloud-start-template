@@ -9,8 +9,9 @@ AWS_REGION="${AWS_REGION:-eu-west-3}"
 TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-}"
 TF_BACKEND_DYNAMO_TABLE="${TF_BACKEND_DYNAMO_TABLE:-}"
 
-NAME_PREFIX="${NAME_PREFIX:-fastapi-dev}"
-ECR_REPO="${ECR_REPO:-fastapi-dev}"
+NAME_PREFIX="${NAME_PREFIX:-fastapi}"
+ENVIRONMENT="${ENVIRONMENT:-dev}"
+
 IMAGE_TAG="${IMAGE_TAG:-dev}"
 DESIRED_COUNT="${DESIRED_COUNT:-1}"
 TASK_CPU="${TASK_CPU:-256}"
@@ -31,7 +32,7 @@ Required env:
   TF_BACKEND_BUCKET, TF_BACKEND_DYNAMO_TABLE
 Optional env:
   NAME_PREFIX=${NAME_PREFIX}
-  ECR_REPO=${ECR_REPO}
+  ENVIRONMENT=${ENVIRONMENT}
   IMAGE_TAG=${IMAGE_TAG}
   DESIRED_COUNT=${DESIRED_COUNT}
   TASK_CPU=${TASK_CPU}  TASK_MEMORY=${TASK_MEMORY}
@@ -73,8 +74,16 @@ tf_vars() {
     extra="$extra -var public_subnet_ids=${list}"
   fi
   if [[ -n "$ACM_CERT_ARN" ]]; then extra="$extra -var acm_certificate_arn=${ACM_CERT_ARN}"; fi
+  if [[ -n "$LOG_GROUP_NAME" ]]; then extra="$extra -var log_group_name=${LOG_GROUP_NAME}"; fi
 
-  echo "-var aws_region=${AWS_REGION} -var name_prefix=${NAME_PREFIX} -var ecr_repo_name=${ECR_REPO} -var image_tag=${IMAGE_TAG} -var desired_count=${DESIRED_COUNT} -var task_cpu=${TASK_CPU} -var task_memory=${TASK_MEMORY} -var log_group_name=${LOG_GROUP_NAME} ${extra}"
+  echo "-var aws_region=${AWS_REGION} \
+        -var name_prefix=${NAME_PREFIX} \
+        -var environment=${ENVIRONMENT} \
+        -var image_tag=${IMAGE_TAG} \
+        -var desired_count=${DESIRED_COUNT} \
+        -var task_cpu=${TASK_CPU} \
+        -var task_memory=${TASK_MEMORY} \
+        ${extra}"
 }
 
 plan_cmd() {
@@ -100,7 +109,8 @@ ecr_login_cmd() {
   local REPO_URL
   REPO_URL="$(terraform output -raw ecr_repo_url 2>/dev/null || true)"
   if [[ -z "$REPO_URL" ]]; then
-    REPO_URL="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+    local ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+    REPO_URL="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NAME_PREFIX}-${ENVIRONMENT}-ecr"
   fi
   aws ecr get-login-password --region "$AWS_REGION" \
     | docker login --username AWS --password-stdin "${REPO_URL%/*}"
@@ -112,7 +122,8 @@ ecr_push_cmd() {
   local REPO_URL
   REPO_URL="$(terraform output -raw ecr_repo_url 2>/dev/null || true)"
   if [[ -z "$REPO_URL" ]]; then
-    REPO_URL="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+    local ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+    REPO_URL="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NAME_PREFIX}-${ENVIRONMENT}-ecr"
   fi
   docker buildx create --use >/dev/null 2>&1 || true
   docker buildx build --platform linux/amd64 -t "${REPO_URL}:${IMAGE_TAG}" --push .
