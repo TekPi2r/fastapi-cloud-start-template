@@ -20,9 +20,6 @@ GITHUB_OWNER="${GITHUB_OWNER:-}"
 GITHUB_REPO="${GITHUB_REPO:-}"
 ALLOWED_BRANCHES="${ALLOWED_BRANCHES:-main}"
 
-ECR_REPO_NAME="${ECR_REPO_NAME:-fastapi-dev}"
-LOG_GROUP_NAME="${LOG_GROUP_NAME:-/fastapi/dev}"
-
 TRUSTED_ROLE_ARNS="${TRUSTED_ROLE_ARNS:-}"
 
 export AWS_PROFILE AWS_REGION
@@ -42,8 +39,6 @@ Optional env:
   ALLOWED_BRANCHES="main"
   NAME_PREFIX=fastapi
   ENVIRONMENT=dev
-  ECR_REPO_NAME=fastapi-dev
-  LOG_GROUP_NAME=/fastapi/dev
   TRUSTED_ROLE_ARNS="arn:aws:iam::<acct>:role/engineering-admin,arn:aws:iam::<acct>:role/another"
 
 Examples:
@@ -116,8 +111,6 @@ plan_cmd() {
     -var "github_owner=${GITHUB_OWNER}" \
     -var "github_repo=${GITHUB_REPO}" \
     -var "allowed_branches=${BRANCHES_HCL}" \
-    -var "ecr_repo_name=${ECR_REPO_NAME}" \
-    -var "log_group_name=${LOG_GROUP_NAME}" \
     -var "trusted_role_arns=${TRUSTED_HCL}"
 }
 
@@ -134,8 +127,6 @@ apply_cmd() {
     -var "github_owner=${GITHUB_OWNER}" \
     -var "github_repo=${GITHUB_REPO}" \
     -var "allowed_branches=${BRANCHES_HCL}" \
-    -var "ecr_repo_name=${ECR_REPO_NAME}" \
-    -var "log_group_name=${LOG_GROUP_NAME}" \
     -var "trusted_role_arns=${TRUSTED_HCL}"
 }
 
@@ -152,8 +143,6 @@ destroy_cmd() {
     -var "github_owner=${GITHUB_OWNER}" \
     -var "github_repo=${GITHUB_REPO}" \
     -var "allowed_branches=${BRANCHES_HCL}" \
-    -var "ecr_repo_name=${ECR_REPO_NAME}" \
-    -var "log_group_name=${LOG_GROUP_NAME}" \
     -var "trusted_role_arns=${TRUSTED_HCL}"
 }
 

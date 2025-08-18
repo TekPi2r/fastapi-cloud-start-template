@@ -1,42 +1,47 @@
+# bootstrap-foundation/main.tf
+
 data "aws_caller_identity" "current" {}
 
 locals {
-  account_id = data.aws_caller_identity.current.account_id
+  account_id  = data.aws_caller_identity.current.account_id
+  environment   = var.environment
+  name          = "${var.name_prefix}-${local.environment}"   # fastapi-dev
+  ecr_repo_name = "${local.name}-ecr"                         # fastapi-dev-ecr
+  log_group_name = "/${var.name_prefix}/${var.environment}"
 
-  allowed_subs = [
-    for b in var.allowed_branches :
-    "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/${b}"
-  ]
+  # e.g. ["repo:TekPi2r/fastapi-cloud-start-template:ref:refs/heads/main"]
+  github_subs = [for b in var.allowed_branches : "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/${b}"]
 
-  ecr_repo_arn                 = "arn:aws:ecr:${var.aws_region}:${local.account_id}:repository/${var.ecr_repo_name}"
-  cw_log_group_arn             = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:${var.log_group_name}"
-  iam_role_target_arn          = "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-dev-ec2-role"
-  iam_instance_profile_arn     = "arn:aws:iam::${local.account_id}:instance-profile/${var.name_prefix}-dev-ec2-profile"
-  iam_policy_prefix_arn        = "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}"
-  aws_managed_ssm_core         = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  ecr_repo_arn  = "arn:aws:ecr:${var.aws_region}:${local.account_id}:repository/${local.ecr_repo_name}"
+  log_group_arn = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:${local.log_group_name}"
 
-  common_tags = {
-    Name        = "${var.name_prefix}-bootstrap-foundation"
+  # Task/Execution role names used by ECS tasks (created in infra/dev-ecs)
+  ecs_task_exec_role_arn = "arn:aws:iam::${local.account_id}:role/${local.name}-ecs-task-exec"
+  # If you later add a *task runtime* role, prefer naming: "${var.name_prefix}-${local.environment}-ecs-task"
+  ecs_task_runtime_role_arn = "arn:aws:iam::${local.account_id}:role/${local.name}-ecs-task"
+
+  tags = {
+    Name        = var.name_prefix       # <- always "fastapi"
     ManagedBy   = "Terraform"
-    Environment = var.environment
+    Environment = local.environment     # "dev"
   }
 }
 
+# --- GitHub OIDC provider (one per account) ---
 resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 
-  client_id_list = [
-    "sts.amazonaws.com"
-  ]
-
-  thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1"
-  ]
-
-  tags = local.common_tags
+  tags = {
+    Name        = "${local.name}-bootstrap-foundation"
+    ManagedBy   = "Terraform"
+    Environment = local.environment
+  }
 }
 
-data "aws_iam_policy_document" "ci_trust" {
+# --- Trust policy shared by build/deploy roles ---
+data "aws_iam_policy_document" "oidc_trust" {
   statement {
     sid     = "GitHubOIDC"
     effect  = "Allow"
@@ -56,32 +61,18 @@ data "aws_iam_policy_document" "ci_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = local.allowed_subs
-    }
-  }
-
-  dynamic "statement" {
-    for_each = length(var.trusted_role_arns) > 0 ? [1] : []
-    content {
-      sid     = "EngineeringBreakGlass"
-      effect  = "Allow"
-      actions = ["sts:AssumeRole"]
-
-      principals {
-        type        = "AWS"
-        identifiers = var.trusted_role_arns
-      }
+      values   = local.github_subs
     }
   }
 }
 
-resource "aws_iam_role" "ci" {
-  name               = "${var.name_prefix}-ci"
-  assume_role_policy = data.aws_iam_policy_document.ci_trust.json
-  tags               = local.common_tags
-}
+# =====================
+# Role: fastapi-*-build
+# =====================
 
-data "aws_iam_policy_document" "ci_permissions" {
+# Least-privilege policy for Build pipeline: push images to one ECR repo
+data "aws_iam_policy_document" "build_min" {
+  # ECR auth + describe (global)
   statement {
     sid     = "EcrAuth"
     effect  = "Allow"
@@ -94,153 +85,122 @@ data "aws_iam_policy_document" "ci_permissions" {
     resources = ["*"]
   }
 
+  # Push to the scoped repository only
   statement {
-    sid     = "EcrScopedRepoRW"
+    sid     = "EcrPushScoped"
     effect  = "Allow"
     actions = [
-      "ecr:CreateRepository",
-      "ecr:DeleteRepository",
-      "ecr:PutLifecyclePolicy",
       "ecr:BatchCheckLayerAvailability",
       "ecr:InitiateLayerUpload",
       "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
-      "ecr:PutImage",
-      "ecr:SetRepositoryPolicy",
-      "ecr:GetRepositoryPolicy",
-      "ecr:BatchDeleteImage"
+      "ecr:PutImage"
     ]
     resources = [local.ecr_repo_arn]
   }
+}
 
+resource "aws_iam_policy" "fastapi_build_min" {
+  name        = "${local.name}-build-min"
+  description = "Least-privilege for GitHub Actions build (ECR push to ${local.ecr_repo_name})"
+  policy      = data.aws_iam_policy_document.build_min.json
+
+  tags = {
+    Name        = "${local.name}-build-min"
+    ManagedBy   = "Terraform"
+    Environment = local.environment
+  }
+}
+
+resource "aws_iam_role" "fastapi_build" {
+  name               = "${local.name}-build"
+  assume_role_policy = data.aws_iam_policy_document.oidc_trust.json
+
+  tags = {
+    Name        = "${local.name}-build"
+    ManagedBy   = "Terraform"
+    Environment = local.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "fastapi_build_attach" {
+  role       = aws_iam_role.fastapi_build.name
+  policy_arn = aws_iam_policy.fastapi_build_min.arn
+}
+
+# ======================
+# Role: fastapi-*-deploy
+# ======================
+
+# Least-privilege policy for Deploy pipeline: register task def + update service
+data "aws_iam_policy_document" "deploy_min" {
+  # ECS read + mutate only what we need
   statement {
-    sid     = "CloudWatchLogsScoped"
+    sid     = "EcsCore"
     effect  = "Allow"
     actions = [
-      "logs:CreateLogGroup",
-      "logs:DeleteLogGroup",
-      "logs:PutRetentionPolicy",
-      "logs:DescribeLogGroups",
-      "logs:TagLogGroup"
+      "ecs:Describe*",
+      "ecs:List*",
+      "ecs:RegisterTaskDefinition",
+      "ecs:DeregisterTaskDefinition",
+      "ecs:UpdateService"
     ]
-    resources = [local.cw_log_group_arn]
+    resources = ["*"]
   }
 
+  # Allow passing ONLY our ECS task roles to ECS tasks
   statement {
-    sid     = "IamRuntimeScoped"
+    sid     = "IamPassOnlyEcsTaskRoles"
     effect  = "Allow"
-    actions = [
-      "iam:CreateRole",
-      "iam:DeleteRole",
-      "iam:PassRole",
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy",
-      "iam:CreateInstanceProfile",
-      "iam:DeleteInstanceProfile",
-      "iam:AddRoleToInstanceProfile",
-      "iam:RemoveRoleFromInstanceProfile",
-      "iam:CreatePolicy",
-      "iam:DeletePolicy"
-    ]
+    actions = ["iam:PassRole"]
     resources = [
-      local.iam_role_target_arn,
-      local.iam_instance_profile_arn,
-      "${local.iam_policy_prefix_arn}-*"
+      local.ecs_task_exec_role_arn,
+      local.ecs_task_runtime_role_arn
     ]
-
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["ec2.amazonaws.com"]
+      values   = ["ecs-tasks.amazonaws.com"]
     }
   }
 
+  # ECR read of our repo (to resolve image digest during deployment if needed)
   statement {
-    sid     = "IamAttachOnlyApprovedPolicies"
+    sid     = "EcrReadRepo"
     effect  = "Allow"
     actions = [
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy"
+      "ecr:BatchGetImage",
+      "ecr:DescribeImages",
+      "ecr:GetDownloadUrlForLayer"
     ]
-    resources = [local.iam_role_target_arn]
-
-    condition {
-      test     = "ArnEquals"
-      variable = "iam:PolicyARN"
-      values   = [
-        local.aws_managed_ssm_core,
-        "${local.iam_policy_prefix_arn}-*"
-      ]
-    }
-  }
-
-  statement {
-    sid     = "Ec2CoreWithTagGuard"
-    effect  = "Allow"
-    actions = [
-      "ec2:RunInstances",
-      "ec2:TerminateInstances",
-      "ec2:CreateSecurityGroup",
-      "ec2:DeleteSecurityGroup",
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:AuthorizeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:CreateTags",
-      "ec2:DeleteTags",
-      "ec2:Describe*"
-    ]
-    resources = ["*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/ManagedBy"
-      values   = ["Terraform"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/Environment"
-      values   = [var.environment]
-    }
-  }
-
-  statement {
-    sid     = "Ec2SGMutationsOnlyOnTagged"
-    effect  = "Allow"
-    actions = [
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:AuthorizeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:DeleteSecurityGroup",
-      "ec2:CreateTags",
-      "ec2:DeleteTags"
-    ]
-    resources = ["*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/ManagedBy"
-      values   = ["Terraform"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/Environment"
-      values   = [var.environment]
-    }
+    resources = [local.ecr_repo_arn]
   }
 }
 
-resource "aws_iam_policy" "ci" {
-  name        = "${var.name_prefix}-ci-min"
-  description = "Least-privilege policy for GitHub Actions to apply infra/dev"
-  policy      = data.aws_iam_policy_document.ci_permissions.json
-  tags        = local.common_tags
+resource "aws_iam_policy" "fastapi_deploy_min" {
+  name        = "${local.name}-deploy-min"
+  description = "Least-privilege for GitHub Actions deploy (ECS update + ECR read)"
+  policy      = data.aws_iam_policy_document.deploy_min.json
+
+  tags = {
+    Name        = "${local.name}-deploy-min"
+    ManagedBy   = "Terraform"
+    Environment = local.environment
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "ci_attach" {
-  role       = aws_iam_role.ci.name
-  policy_arn = aws_iam_policy.ci.arn
+resource "aws_iam_role" "fastapi_deploy" {
+  name               = "${local.name}-deploy"
+  assume_role_policy = data.aws_iam_policy_document.oidc_trust.json
+
+  tags = {
+    Name        = "${local.name}-deploy"
+    ManagedBy   = "Terraform"
+    Environment = local.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "fastapi_deploy_attach" {
+  role       = aws_iam_role.fastapi_deploy.name
+  policy_arn = aws_iam_policy.fastapi_deploy_min.arn
 }
