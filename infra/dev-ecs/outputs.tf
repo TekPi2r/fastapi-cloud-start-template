@@ -1,0 +1,29 @@
+output "ecr_repo_url" {
+  value       = aws_ecr_repository.api.repository_url
+  description = "ECR repository URL"
+}
+
+output "cluster_name" {
+  value       = aws_ecs_cluster.this.name
+  description = "ECS cluster name"
+}
+
+output "service_name" {
+  value       = aws_ecs_service.api.name
+  description = "ECS service name"
+}
+
+output "alb_dns_name" {
+  value       = aws_lb.app.dns_name
+  description = "ALB public DNS"
+}
+
+output "log_group_name" {
+  value       = aws_cloudwatch_log_group.api.name
+  description = "CloudWatch Log Group"
+}
+
+output "task_role_arn" {
+  description = "IAM role assumed by the ECS task (app runtime)"
+  value       = aws_iam_role.task_runtime.arn
+}
