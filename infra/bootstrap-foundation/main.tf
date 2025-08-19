@@ -44,7 +44,6 @@ resource "aws_iam_openid_connect_provider" "github" {
 data "aws_iam_policy_document" "oidc_trust" {
   statement {
     sid     = "GitHubOIDC"
-    effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     principals {
@@ -58,10 +57,14 @@ data "aws_iam_policy_document" "oidc_trust" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # Autoriser soit un run sur la branche main, soit un run taggé sur l'environnement dev
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = local.github_subs
+      values = concat(
+        tolist(local.github_subs),  # <- flatten/normalize the tuple
+        ["repo:${var.github_owner}/${var.github_repo}:environment:${var.environment}"]
+      )
     }
   }
 }
