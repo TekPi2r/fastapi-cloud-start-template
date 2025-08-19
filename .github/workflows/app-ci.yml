@@ -12,6 +12,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'src/**'
+  workflow_dispatch:
 
 permissions:
   id-token: write
