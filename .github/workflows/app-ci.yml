@@ -29,7 +29,6 @@ jobs:
         AWS_REGION: ${{ vars.AWS_REGION }}
         NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
         ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
-        ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +53,6 @@ jobs:
         AWS_REGION: ${{ vars.AWS_REGION }}
         NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
         ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
-        ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false }

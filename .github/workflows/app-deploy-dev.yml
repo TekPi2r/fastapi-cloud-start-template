@@ -32,8 +32,6 @@ jobs:
       ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
       TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
       TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_BACKEND_DYNAMO_TABLE }}
-      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
-      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,8 +70,6 @@ jobs:
       ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
       TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
       TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_BACKEND_DYNAMO_TABLE }}
-      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
-      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     needs: [plan]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
