@@ -87,7 +87,21 @@ plan_cmd() {
   terraform fmt -recursive >/dev/null || true
   terraform validate
   # shellcheck disable=SC2046
-  terraform plan $(tf_vars)
+  set +e
+    terraform plan -input=false -no-color -detailed-exitcode -out=tfplan
+    ec=$?
+    set -e
+
+    if [ "$ec" -eq 1 ]; then
+      echo "Terraform plan failed" >&2
+      exit 1
+    elif [ "$ec" -eq 2 ]; then
+      echo "Terraform plan found changes (expected in deploy)."
+      exit 0     # <<< important pour que la CI passe
+    else
+      echo "No changes."
+      exit 0
+    fi
 }
 
 apply_cmd() {
