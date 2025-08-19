@@ -324,6 +324,30 @@ data "aws_iam_policy_document" "deploy_min" {
     ]
     resources = ["*"]
   }
+
+  # ECR: lecture des tags du repo
+  statement {
+    sid     = "EcrListTagsForResource"
+    effect  = "Allow"
+    actions = ["ecr:ListTagsForResource"]
+    resources = [local.ecr_repo_arn]
+  }
+
+  # ELBv2: lecture des ATTRIBUTES du LB
+  statement {
+    sid     = "ElbReadAttributesLb"
+    effect  = "Allow"
+    actions = ["elasticloadbalancing:DescribeLoadBalancerAttributes"]
+    resources = ["*"] # les ARNs exacts varient, on reste en read-only global
+  }
+
+  # ELBv2: lecture des ATTRIBUTES du Target Group
+  statement {
+    sid     = "ElbReadAttributesTg"
+    effect  = "Allow"
+    actions = ["elasticloadbalancing:DescribeTargetGroupAttributes"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "fastapi_deploy_min" {
