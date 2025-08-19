@@ -6,7 +6,7 @@ on:
     paths:
       - 'infra/dev-ecs/**'
       - 'Dockerfile'
-      - 'src/**'
+      - 'app/**'
   workflow_dispatch:
     inputs:
       image_tag:
