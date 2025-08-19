@@ -9,7 +9,7 @@ locals {
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "tf_state" {
   bucket        = var.bucket_name
-  force_destroy = false
+  force_destroy = true   # << supprime toutes les versions au destroy
 
   tags = local.tags
 }
