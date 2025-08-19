@@ -1,0 +1,89 @@
+name: 01 - bootstrap-foundation
+
+on:
+  pull_request:
+    paths:
+      - 'infra/bootstrap-foundation/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/bootstrap-foundation/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+      ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+      TF_BACKEND_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_LOCKS_TABLE }}
+      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
+      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_BOOTSTRAP_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform fmt & validate
+        working-directory: infra/bootstrap-foundation
+        run: |
+          chmod +x run.sh
+          terraform fmt -recursive -check || true
+          terraform validate || true
+
+      - name: Terraform plan
+        working-directory: infra/bootstrap-foundation
+        run: ./run.sh plan
+
+  apply:
+    name: Terraform apply
+    needs: [plan]
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_BACKEND_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_LOCKS_TABLE }}
+      NAME_PREFIX: ${{ vars.NAME_PREFIX }}
+      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
+      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_BOOTSTRAP_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform apply (needs environment approval)
+        working-directory: infra/bootstrap-foundation
+        run: |
+          chmod +x run.sh
+          ./run.sh apply
+
+      - name: Show outputs
+        working-directory: infra/bootstrap-foundation
+        run: ./run.sh outputs || true

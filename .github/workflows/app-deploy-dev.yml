@@ -1,0 +1,102 @@
+name: app-deploy-dev
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/dev-ecs/**'
+      - 'Dockerfile'
+      - 'src/**'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag image à déployer (par défaut: short SHA)'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-dev
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+  ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+  TF_BACKEND_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_LOCKS_TABLE }}
+  LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
+  ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
+
+jobs:
+  plan:
+    name: Terraform plan (dev-ecs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS (OIDC) - deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_DEPLOY_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare IMAGE_TAG
+        id: tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${GITHUB_SHA::12}"; fi
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Terraform plan
+        working-directory: infra/dev-ecs
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
+        run: |
+          chmod +x run.sh
+          ./run.sh plan
+
+  apply:
+    name: Terraform apply (dev-ecs)
+    needs: [plan]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS (OIDC) - deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_DEPLOY_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare IMAGE_TAG
+        id: tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${GITHUB_SHA::12}"; fi
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Terraform apply
+        working-directory: infra/dev-ecs
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
+        run: |
+          chmod +x run.sh
+          ./run.sh apply
+
+      - name: Show ALB URL
+        working-directory: infra/dev-ecs
+        run: ./run.sh url || true

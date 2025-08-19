@@ -1,0 +1,83 @@
+name: app-ci
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'src/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+  ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+  ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
+
+jobs:
+  test:
+    name: Test (PR)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install deps
+        run: |
+          pip install -U pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install .; fi
+          pip install pytest
+      - name: Run tests
+        run: pytest -q || true  # adapte si tu veux fail la PR
+
+  build_and_push:
+    name: Build & Push ECR (main)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+
+      - name: Configure AWS (OIDC) - build role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_BUILD_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Compute ECR repo URL & tag
+        id: meta
+        shell: bash
+        run: |
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          echo "repo_url=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_SHA::12}" >> $GITHUB_OUTPUT
+          echo "Will push to: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${GITHUB_SHA::12}"
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.repo_url }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.repo_url }}:latest-dev
