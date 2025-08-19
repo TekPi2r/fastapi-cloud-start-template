@@ -128,3 +128,55 @@ export TF_BACKEND_DYNAMO_TABLE=<from bootstrap>
 - “Missing backend configuration” warning → optional: add `terraform { backend "s3" {} }` in `providers.tf`.
 - Duplicate resources after previous manual runs (SG/Role/LogGroup already exists) → use the provided **cleanup/destroy** flow (purge ECR, then `destroy`) and re-`apply`.
 
+
+
+
+
+## 4️⃣ Version 4.0.0 – AWS ECS Fargate + OIDC CI/CD Hardening (2025-08-19)
+
+### ✨ Highlights
+- Re-architected AWS stack around **ECS Fargate** + **ALB** with a clean separation of concerns:
+  - **bootstrap-create/** → S3 **remote state** bucket + DynamoDB **locks** (one-time, local). 🧱
+  - **bootstrap-foundation/** → GitHub **OIDC** provider + least‑privilege **IAM roles** for CI. 🔐
+  - **dev-ecs/** → App infra (**ECR repo**, **ECS cluster/service/task**, **ALB**, **Logs**, **SGs**). 🧩
+- Deterministic naming via `NAME_PREFIX=fastapi` & `ENVIRONMENT=dev`:
+  - ECR: `fastapi-dev-ecr` • Log Group: `/fastapi/dev` • Cluster: `fastapi-dev-cluster` • Service: `fastapi-dev-svc`.
+- No hard‑coded repo/log names in CI; values are **derived** from env vars. ✅
+
+### 🔐 Security by Design
+- **GitHub OIDC** trust to assume AWS roles (no static keys in GitHub).  
+- Roles:
+  - `fastapi-dev-build` → minimal **ECR push** scope to `fastapi-dev-ecr`.
+  - `fastapi-dev-deploy` → **Terraform plan/apply** for `infra/dev-ecs` + `iam:PassRole` locked to ECS task roles.
+- Extra read‑only permissions added for safe Terraform refresh (ELB/EC2/Logs/ECR describes) and TF backend (S3/Dynamo).
+
+### 🧪/🚀 CI/CD
+- **.github/workflows/app-ci.yml** → build & push Docker image to ECR on PR/push to `main` 🐳.
+  - Tags: short SHA + `latest-dev`.
+  - Uses `AWS_ROLE_BUILD_ARN` (environment: `dev`).
+- **.github/workflows/app-deploy-dev.yml** → Terraform **plan & apply** of `infra/dev-ecs` ⚙️.
+  - Approvals via GitHub **Environment** `dev`.
+  - Treats Terraform plan **exit code 2** (“changes”) as expected.
+  - Uses `AWS_ROLE_DEPLOY_ARN` (environment: `dev`).
+
+### 🧰 Dev Experience
+- Uniform `run.sh` helpers (check/plan/apply/destroy/outputs/ecr-login/ecr-push/url).  
+- `ecr-push` computes repo from prefix/env; no need for `ECR_REPO_NAME`.  
+- `url` prints ALB endpoint after deploy for instant smoke tests.
+
+### ⚠️ Breaking / Notable Changes
+- ECR repo renamed to `*-ecr` and log group standardized to `/${NAME_PREFIX}/${ENVIRONMENT}`.
+- Old GitHub workflows `00/01/02` removed; **bootstrap runs locally** only. CI covers **build** + **deploy**.
+- GitHub **Environment** `dev` now stores non-secret env vars (region, TF backend, role ARNs).
+
+### 🔄 Upgrade / Migration
+1. Run `infra/bootstrap-create` once to create state bucket & lock table.
+2. Run `infra/bootstrap-foundation` to create OIDC + CI roles; copy role ARNs to GitHub Environment `dev`:
+   - `AWS_ROLE_BUILD_ARN` / `AWS_ROLE_DEPLOY_ARN`
+3. Ensure `dev` env vars are set: `AWS_REGION`, `NAME_PREFIX`, `ENVIRONMENT`, `TF_BACKEND_BUCKET`, `TF_BACKEND_DYNAMO_TABLE`.
+4. Optional first apply of `infra/dev-ecs` locally; afterward, use **app-ci** (build) then **app-deploy-dev** (apply).
+
+### 🔗 Docs
+- Infra README: `infra/README.md` (fresh, emoji‑friendly, step‑by‑step).  
+- Root README updated to reflect ECS/ECR and OIDC‑based CI.
+
