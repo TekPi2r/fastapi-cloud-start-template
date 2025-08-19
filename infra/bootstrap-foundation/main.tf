@@ -277,6 +277,53 @@ data "aws_iam_policy_document" "deploy_min" {
       local.ecs_task_runtime_role_arn
     ]
   }
+
+  # IAM: lire les inline/attached policies des rôles ECS
+  statement {
+    sid     = "IamListRolePolicies"
+    effect  = "Allow"
+    actions = [
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
+      "iam:GetRolePolicy"
+    ]
+    resources = [
+      local.ecs_task_exec_role_arn,
+      local.ecs_task_runtime_role_arn
+    ]
+  }
+
+  # IAM: lire les policies AWS gérées renvoyées par ListAttachedRolePolicies
+  statement {
+    sid     = "IamReadAwsManagedPolicies"
+    effect  = "Allow"
+    actions = [
+      "iam:GetPolicy",
+      "iam:GetPolicyVersion",
+      "iam:ListPolicyVersions"
+    ]
+    resources = ["arn:aws:iam::aws:policy/*"]
+  }
+
+  # CloudWatch Logs: lecture des tags du log group
+  statement {
+    sid     = "LogsListTagsForResource"
+    effect  = "Allow"
+    actions = ["logs:ListTagsForResource"]
+    resources = [local.log_group_arn]
+  }
+
+  # EC2: attributs VPC + (optionnel) AZ/account attrs
+  statement {
+    sid     = "Ec2ReadVpcAttrs"
+    effect  = "Allow"
+    actions = [
+      "ec2:DescribeVpcAttribute",
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeAvailabilityZones"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "fastapi_deploy_min" {
