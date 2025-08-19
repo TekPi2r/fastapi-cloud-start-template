@@ -222,6 +222,61 @@ data "aws_iam_policy_document" "deploy_min" {
     ]
     resources = [local.tf_lock_table_arn]
   }
+
+  # --- AJOUTS: lectures nécessaires au "terraform plan" ---
+
+  # EC2 describe pour data.aws_vpc / data.aws_subnets / SG
+  statement {
+    sid     = "Ec2ReadDescribe"
+    effect  = "Allow"
+    actions = [
+      "ec2:DescribeVpcs",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeSecurityGroups"
+    ]
+    resources = ["*"]
+  }
+
+  # ALB/Target Groups describe pour rafraîchir aws_lb / aws_lb_target_group / listener
+  statement {
+    sid     = "ElbReadDescribe"
+    effect  = "Allow"
+    actions = [
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeTargetGroups",
+      "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:DescribeTargetHealth"
+    ]
+    resources = ["*"]
+  }
+
+  # CloudWatch Logs pour aws_cloudwatch_log_group
+  statement {
+    sid     = "LogsReadDescribe"
+    effect  = "Allow"
+    actions = ["logs:DescribeLogGroups"]
+    resources = ["*"]
+  }
+
+  # ECR describe du repo (le plan lit le repo existant)
+  statement {
+    sid     = "EcrRepoRead"
+    effect  = "Allow"
+    actions = ["ecr:DescribeRepositories"]
+    resources = ["*"]
+  }
+
+  # Lecture ciblée des rôles ECS (utile quand le provider vérifie les rôles référencés)
+  statement {
+    sid     = "IamReadRole"
+    effect  = "Allow"
+    actions = ["iam:GetRole"]
+    resources = [
+      local.ecs_task_exec_role_arn,
+      local.ecs_task_runtime_role_arn
+    ]
+  }
 }
 
 resource "aws_iam_policy" "fastapi_deploy_min" {
