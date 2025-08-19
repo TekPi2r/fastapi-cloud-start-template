@@ -21,15 +21,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
-  ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
-  ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
-
 jobs:
   test:
     name: Test (PR)
+    environment: dev
+    env:
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+        ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+        ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +50,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
+    env:
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+        ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+        ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false }

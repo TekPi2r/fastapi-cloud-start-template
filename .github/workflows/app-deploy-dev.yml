@@ -22,18 +22,18 @@ concurrency:
   group: ${{ github.workflow }}-dev
   cancel-in-progress: true
 
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
-  ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
-  TF_BACKEND_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-  TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_LOCKS_TABLE }}
-  LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
-  ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
-
 jobs:
   plan:
     name: Terraform plan (dev-ecs)
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+      ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+      TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
+      TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_BACKEND_DYNAMO_TABLE }}
+      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
+      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,9 +65,17 @@ jobs:
 
   apply:
     name: Terraform apply (dev-ecs)
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
+      ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+      TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
+      TF_BACKEND_DYNAMO_TABLE: ${{ vars.TF_BACKEND_DYNAMO_TABLE }}
+      LOG_GROUP_NAME: "/${{ vars.NAME_PREFIX }}/${{ vars.ENVIRONMENT }}"
+      ECR_REPO_NAME: "${{ vars.NAME_PREFIX }}-${{ vars.ENVIRONMENT }}-ecr"
     needs: [plan]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    environment: dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
