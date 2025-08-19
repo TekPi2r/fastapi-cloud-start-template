@@ -104,7 +104,7 @@ plan_cmd() {
 
 apply_cmd() {
   # shellcheck disable=SC2046
-  terraform apply -auto-approve $(tf_vars)
+  terraform apply -input=false -auto-approve tfplan $(tf_vars) || terraform apply -input=false -auto-approve $(tf_vars)
 }
 
 destroy_cmd() {
