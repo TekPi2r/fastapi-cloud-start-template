@@ -6,7 +6,6 @@ set -euo pipefail
 
 CMD="${1:-help}"
 
-AWS_PROFILE="${AWS_PROFILE:-bootstrap}"
 AWS_REGION="${AWS_REGION:-eu-west-3}"
 
 # Required
@@ -15,12 +14,10 @@ DYNAMO_TABLE="${DYNAMO_TABLE:-terraform-locks}"
 NAME_PREFIX="${NAME_PREFIX:-fastapi}"
 ENVIRONMENT="${ENVIRONMENT:-bootstrap}"
 
-export AWS_PROFILE AWS_REGION
-
 usage() {
   cat <<EOF
 Usage:
-  (env) AWS_PROFILE=bootstrap AWS_REGION=eu-west-3 BUCKET_NAME=<unique-s3-bucket> ./run.sh <check|init|plan|apply|outputs|destroy>
+  (env) AWS_REGION=eu-west-3 BUCKET_NAME=<unique-s3-bucket> ./run.sh <check|init|plan|apply|outputs|destroy>
 
 Required env:
   BUCKET_NAME               # must be globally unique
@@ -31,7 +28,6 @@ Optional env:
   ENVIRONMENT=bootstrap
 
 Examples:
-  export AWS_PROFILE="bootstrap"
   export AWS_REGION="eu-west-3"
   export BUCKET_NAME="tfstate-yourhandle-euw3"
 
@@ -52,7 +48,7 @@ preflight() {
   if [[ -z "${BUCKET_NAME}" ]]; then
     echo "BUCKET_NAME is required (globally unique S3 bucket)"; exit 1
   fi
-  echo "AWS_PROFILE=${AWS_PROFILE}  AWS_REGION=${AWS_REGION}"
+  echo "AWS_REGION=${AWS_REGION} BUCKET_NAME=$BUCKET_NAME"
   aws sts get-caller-identity >/dev/null
 }
 

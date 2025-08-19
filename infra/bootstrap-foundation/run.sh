@@ -6,7 +6,6 @@ set -euo pipefail
 
 CMD="${1:-help}"
 
-AWS_PROFILE="${AWS_PROFILE:-bootstrap}"
 AWS_REGION="${AWS_REGION:-eu-west-3}"
 
 TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-}"
@@ -21,8 +20,6 @@ GITHUB_REPO="${GITHUB_REPO:-}"
 ALLOWED_BRANCHES="${ALLOWED_BRANCHES:-main}"
 
 TRUSTED_ROLE_ARNS="${TRUSTED_ROLE_ARNS:-}"
-
-export AWS_PROFILE AWS_REGION
 
 usage() {
   cat <<EOF
@@ -42,7 +39,6 @@ Optional env:
   TRUSTED_ROLE_ARNS="arn:aws:iam::<acct>:role/engineering-admin,arn:aws:iam::<acct>:role/another"
 
 Examples:
-  export AWS_PROFILE=bootstrap
   export AWS_REGION=eu-west-3
   export TF_BACKEND_BUCKET="tfstate-<handle>-euw3"
   export TF_BACKEND_DYNAMO_TABLE="terraform-locks"
@@ -65,7 +61,7 @@ preflight() {
   [[ -n "$GITHUB_OWNER" ]] || { echo "GITHUB_OWNER required"; exit 1; }
   [[ -n "$GITHUB_REPO" ]] || { echo "GITHUB_REPO required"; exit 1; }
   aws sts get-caller-identity >/dev/null
-  echo "AWS_PROFILE=$AWS_PROFILE AWS_REGION=$AWS_REGION"
+  echo "AWS_REGION=$AWS_REGION TF_BACKEND_BUCKET=$TF_BACKEND_BUCKET TF_BACKEND_DYNAMO_TABLE=$TF_BACKEND_DYNAMO_TABLE GITHUB_OWNER=$GITHUB_OWNER GITHUB_REPO=$GITHUB_REPO"
 }
 
 init_cmd() {

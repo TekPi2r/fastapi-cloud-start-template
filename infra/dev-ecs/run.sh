@@ -3,7 +3,6 @@ set -euo pipefail
 
 CMD="${1:-help}"
 
-AWS_PROFILE="${AWS_PROFILE:-bootstrap}"
 AWS_REGION="${AWS_REGION:-eu-west-3}"
 
 TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-}"
@@ -20,8 +19,6 @@ VPC_ID="${VPC_ID:-}"
 PUBLIC_SUBNET_IDS="${PUBLIC_SUBNET_IDS:-}" # comma-separated, optional
 ACM_CERT_ARN="${ACM_CERT_ARN:-}"          # optional
 LOG_GROUP_NAME="${LOG_GROUP_NAME:-/fastapi/dev}"
-
-export AWS_PROFILE AWS_REGION
 
 usage() {
   cat <<EOF
@@ -51,7 +48,7 @@ preflight() {
   [[ -n "$TF_BACKEND_BUCKET" ]] || { echo "TF_BACKEND_BUCKET required"; exit 1; }
   [[ -n "$TF_BACKEND_DYNAMO_TABLE" ]] || { echo "TF_BACKEND_DYNAMO_TABLE required"; exit 1; }
   aws sts get-caller-identity >/dev/null
-  echo "AWS_PROFILE=$AWS_PROFILE AWS_REGION=$AWS_REGION"
+  echo "AWS_REGION=$AWS_REGION TF_BACKEND_BUCKET=$TF_BACKEND_BUCKET TF_BACKEND_DYNAMO_TABLE=$TF_BACKEND_DYNAMO_TABLE"
 }
 
 init_backend() {
