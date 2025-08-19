@@ -246,7 +246,8 @@ data "aws_iam_policy_document" "deploy_min" {
       "elasticloadbalancing:DescribeListeners",
       "elasticloadbalancing:DescribeTargetGroups",
       "elasticloadbalancing:DescribeRules",
-      "elasticloadbalancing:DescribeTargetHealth"
+      "elasticloadbalancing:DescribeTargetHealth",
+      "elasticloadbalancing:DescribeTags"       # <- add this
     ]
     resources = ["*"]
   }
