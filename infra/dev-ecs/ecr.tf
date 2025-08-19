@@ -9,10 +9,7 @@ resource "aws_ecr_repository" "api" {
   encryption_configuration {
     encryption_type = "AES256"
   }
-
-  # Optionnel pendant la transition/renommage : permet de détruire un repo non vide
-  # force_delete = true
-
+  force_delete         = true   # << supprime aussi si des images restent
   tags = local.tags
 }
 
