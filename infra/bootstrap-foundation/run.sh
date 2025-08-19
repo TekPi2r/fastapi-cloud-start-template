@@ -21,6 +21,17 @@ ALLOWED_BRANCHES="${ALLOWED_BRANCHES:-main}"
 
 TRUSTED_ROLE_ARNS="${TRUSTED_ROLE_ARNS:-}"
 
+export TF_VAR_tf_state_bucket="$TF_BACKEND_BUCKET"
+export TF_VAR_tf_lock_table="$TF_BACKEND_DYNAMO_TABLE"
+export TF_VAR_github_owner="$GITHUB_OWNER"
+export TF_VAR_github_repo="$GITHUB_REPO"
+export TF_VAR_name_prefix="${NAME_PREFIX:-fastapi}"
+export TF_VAR_environment="${ENVIRONMENT:-dev}"
+
+if [ -n "${ALLOWED_BRANCHES:-}" ]; then
+  export TF_VAR_allowed_branches="$(echo "$ALLOWED_BRANCHES" | tr -d ' ' )"
+fi
+
 usage() {
   cat <<EOF
 Usage:
