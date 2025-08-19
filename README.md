@@ -1,189 +1,152 @@
 # 🚀 FastAPI Cloud Start Template
 
-[![CI](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/ci.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions) [![Trivy](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/trivy.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/python-3.11-blue.svg) ![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg) ![Kubernetes](https://img.shields.io/badge/Kubernetes-local--dev-blueviolet.svg)
+[![Build & Push (CI)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/app-ci.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/app-ci.yml)
+[![Deploy dev](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/app-deploy-dev.yml/badge.svg)](https://github.com/TekPi2r/fastapi-cloud-start-template/actions/workflows/app-deploy-dev.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-latest-green.svg)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-local--dev-blueviolet.svg)
 
-A modern production-ready **FastAPI** template, now with a turnkey **AWS infra path** (Terraform S3/DynamoDB backend, ECR, EC2, CloudWatch) and a streamlined **Run script UX**. Build locally on Kubernetes, or deploy a dev environment in minutes on AWS.
+A modern, production‑minded **FastAPI** template with a clean path to AWS:
+- **Terraform** infra for **ECS Fargate + ALB + ECR** 🏗️
+- **GitHub OIDC** + least‑privilege IAM 🔐
+- **Two pipelines**: build/push Docker → deploy to ECS 🚢
+
+> Prefer the full infra details in [`infra/README.md`](infra/README.md) (freshly rewritten) for deep‑dive usage & teardown.
 
 ---
 
-## ✨ What’s Inside
+## ✨ What’s inside
 
-- **API & Auth**
-  - 🔐 OAuth2 password flow with **JWT**
+- **API**
   - ⚡ FastAPI + Uvicorn
-- **Data & Tests**
-  - 🍃 **MongoDB** (Docker/K8s)
-  - 🧪 **pytest** with `unit` & `integration` markers
-- **Containers & Security**
-  - 🐳 Alpine-based **Dockerfile**, non-root, healthcheck
-  - 🛡️ **Trivy** image scanning (locally & in CI)
+  - 🔐 OAuth2 (password flow) + JWT
+- **Tests & data**
+  - 🧪 `pytest` (unit & integration markers)
+  - 🍃 MongoDB used in integration tests
+- **Containers**
+  - 🐳 Production‑ready Dockerfile (non‑root, healthcheck)
+- **Security**
+  - 🛡️ Image scanning ready (Trivy)
+  - 🔐 GitHub Actions OIDC → AWS (no long‑lived keys)
 - **CI/CD**
-  - 🤖 **GitHub Actions** (tests + security)
-- **Local Dev**
-  - ☸️ **Kubernetes/Minikube** workflow via `make`
-- **AWS Infra (NEW)**
-  - 🧱 `infra/bootstrap`: **Terraform remote state** (S3 + DynamoDB) + helper `run.sh`
-  - 🛠️ `infra/dev`: **ECR** repo, **EC2** runner (pulls & runs your image), **CloudWatch Logs**, **IAM** (ECR RO + SSM), **Security Group** for `:80 → 8000`
-  - 🧩 Dev `run.sh` with: `check/init/plan/apply/outputs/destroy/status/logs/hit/redeploy/ecr-login/ecr-push/local-clean`
-  - 📦 **Multi-arch push** to ECR with `docker buildx` (`linux/amd64`), then **EC2 redeploy** (recreate) to pick the new image
-  - 🧹 Safe destroy: helper empties ECR repo images before deleting resources
+  - 🤖 `app-ci.yml` (build & push to ECR)
+  - ⚙️ `app-deploy-dev.yml` (plan/apply Terraform to ECS)
 
 ---
 
-## 🗺️ Architecture
-
-```text
-Local
-┌────────────────────┐      ┌───────────┐
-│ FastAPI (Uvicorn) │◄────►│ MongoDB   │
-│ OAuth2 + JWT      │      │ (Docker)  │
-└────────────────────┘      └───────────┘
-       ▲     ▲
-       │     └── pytest / CI / Trivy
-
-AWS Dev
-┌───────────┐   push (buildx)   ┌─────────┐    user_data     ┌──────────┐
-│ Developer │ ────────────────► │  ECR    │ ───────────────► │  EC2     │
-└───────────┘                   └─────────┘                  │  Docker  │
-                              logs ◄─────────────────────────│  App 8000│
-                                      CloudWatch Logs        └──────────┘
-```
-
----
-
-## 🚀 Quick Start
-
-### 1) Local Dev (Kubernetes)
-```bash
-make dev          # build image, load into Minikube, apply manifests, show service URL
-make logs         # follow API logs
-make tests        # all tests
-make tests-int    # integration tests only
-```
-
-### 2) Bootstrap AWS Remote State (once)
-```bash
-cd infra/bootstrap
-export AWS_PROFILE="bootstrap"
-export AWS_REGION="eu-west-3"
-export BUCKET_NAME="tfstate-<your-handle>-euw3"   # must be globally unique
-
-./run.sh check
-./run.sh apply
-./run.sh outputs   # grab s3_bucket_name + dynamodb_table_name
-```
-
-### 3) Provision Dev Infra (ECR + EC2 + Logs)
-```bash
-cd ../dev
-export AWS_PROFILE="bootstrap"
-export AWS_REGION="eu-west-3"
-export TF_BACKEND_BUCKET="<s3_bucket_name from bootstrap>"
-export TF_BACKEND_DYNAMO_TABLE="terraform-locks"
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile "$AWS_PROFILE")
-# optional overrides
-export ECR_REPO="fastapi-dev"
-export IMAGE_TAG="dev"
-
-./run.sh apply     # creates ECR, EC2, IAM, SG, CloudWatch
-./run.sh outputs
-```
-
-### 4) Build & Push Image to ECR (linux/amd64) and Redeploy
-```bash
-./run.sh ecr-push  # multi-arch push from project root (auto-detected)
-./run.sh redeploy  # recreate EC2 to pull the new image
-./run.sh hit       # curl http://<public-ip>/
-./run.sh logs      # tail CloudWatch Logs
-```
-
-### 5) Destroy (safe)
-```bash
-./run.sh destroy   # empties ECR images then terraform destroy
-```
-
-> Tip: `./run.sh status` gives a quick health report (outputs, ECR existence, basic HTTP reachability).
-
----
-
-## 🧩 Project Layout
+## 🗂️ Repo layout
 
 ```
 .
-├── app/                        # FastAPI app
-├── Dockerfile                  # Non-root, production-ready
-├── k8s/                        # Local K8s manifests
-├── infra/
-│   ├── bootstrap/              # Terraform S3 + DynamoDB (remote state)
-│   │   ├── run.sh              # check/init/plan/apply/.../local-clean
-│   │   └── *.tf
-│   └── dev/                    # Terraform Dev stack (ECR/EC2/Logs/IAM/SG)
-│       ├── run.sh              # rich UX: ecr-push, redeploy, logs, hit, ...
-│       ├── user_data.sh.tftpl  # EC2 startup (Docker login + run)
-│       └── *.tf
-├── Makefile                    # Local dev helpers
-└── README.md                   # This file
+├── app/                         # FastAPI app code
+├── tests/                       # pytest suite
+├── Dockerfile                   # container image
+├── infra/                       # Terraform (S3/Dynamo backend, OIDC, ECS/ECR/ALB)
+│   ├── bootstrap-create/        # S3 state bucket + DynamoDB locks (one‑time)
+│   ├── bootstrap-foundation/    # GitHub OIDC + IAM roles (build/deploy)
+│   └── dev-ecs/                 # ECR, ECS service, ALB, logs, SGs (+ run.sh)
+└── .github/workflows/
+    ├── app-ci.yml               # build & push to ECR
+    └── app-deploy-dev.yml       # plan/apply dev-ecs
 ```
 
 ---
 
-## 🧪 Testing
+## 🔐 Security by design
 
-```bash
-pytest -m unit -v
-pytest -m integration -v
-```
-
----
-
-## 🔐 Secrets Management
-
-- Local dev → `.env` via Pydantic settings
-- Kubernetes → `config.yaml` / `secret.yaml`
-- CI/CD → GitHub Actions env & secrets
+- **No static AWS keys** in CI: GitHub **OIDC** + `AssumeRoleWithWebIdentity`.
+- **Least privilege**:
+  - `fastapi-dev-build` → ECR push scoped to **one repo**.
+  - `fastapi-dev-deploy` → ECS register/update + read‑only describes; S3/Dynamo for TF backend; strict `iam:PassRole` to ECS task roles only.
+- **Environment‑scoped** variables in GitHub **Environments › dev** (region, ARNs, backend names).
 
 ---
 
-## 🧰 Useful Commands
+## 🚀 Quick start
 
-**Trivy scan (local):**
+### 1) One‑time AWS bootstrap (local)
 ```bash
-trivy image fastapi-template:latest
+# infra/bootstrap-create — remote TF state
+export AWS_PROFILE=bootstrap
+export AWS_REGION=eu-west-3
+export BUCKET_NAME="tfstate-<your-handle>-euw3"   # must be globally unique
+./run.sh apply
+
+# infra/bootstrap-foundation — OIDC provider + IAM roles
+export TF_BACKEND_BUCKET="tfstate-<your-handle>-euw3"
+export TF_BACKEND_DYNAMO_TABLE="terraform-locks"
+export GITHUB_OWNER="TekPi2r"
+export GITHUB_REPO="fastapi-cloud-start-template"
+./run.sh apply
+# Copy role ARNs to GitHub → Settings → Environments → dev
 ```
 
-**Query ECR images:**
-```bash
-aws ecr describe-images --repository-name fastapi-dev   --query "imageDetails[].imageTags" --output json   --region "$AWS_REGION" --profile "$AWS_PROFILE"
-```
+### 2) Configure GitHub Environment `dev`
+Set **environment variables** (non‑secret):
+- `AWS_REGION=eu-west-3`
+- `ENVIRONMENT=dev`
+- `NAME_PREFIX=fastapi`
+- `TF_BACKEND_BUCKET=<your bucket>`
+- `TF_BACKEND_DYNAMO_TABLE=terraform-locks`
+- `AWS_ROLE_BUILD_ARN=arn:aws:iam::<acct>:role/fastapi-dev-build`
+- `AWS_ROLE_DEPLOY_ARN=arn:aws:iam::<acct>:role/fastapi-dev-deploy`
 
-**Curl the dev EC2:**
-```bash
-cd infra/dev
-IP=$(terraform output -raw instance_public_ip)
-curl -i "http://$IP/"
-```
+(Optionally require reviewers / wait timer ⏳.)
 
----
-
-## 🛠️ Troubleshooting
-
-- 🐳 `exec format error` in logs (CloudWatch): build for the correct target.
-  ```bash
-  ./run.sh ecr-push   # uses docker buildx --platform linux/amd64
-  ./run.sh redeploy
+### 3) Build & push image (CI)
+- Push to `main` → **`app-ci`** runs and pushes:
+  ```
+  <account>.dkr.ecr.<region>.amazonaws.com/fastapi-dev-ecr:{short-sha}
+  and :latest-dev
   ```
 
-- ⚠️ Terraform backend warning:
-  - You can keep the script-based backend config, or add this in `providers.tf` to silence the warning:
-    ```hcl
-    terraform { backend "s3" {} }
-    ```
+### 4) Deploy to ECS (CI)
+- Manually trigger **`app-deploy-dev`** → choose `IMAGE_TAG` (e.g. `latest-dev`).
+- The workflow plans (exit‑code 2 = “changes”) and applies.
+- The job output prints the **ALB URL** 🌐.
 
-- 🧹 Destroy fails with `RepositoryNotEmptyException`:
-  - Use `./run.sh destroy` (it empties ECR images before deleting the repo).
+---
+
+## 🔧 Useful commands
+
+From `infra/dev-ecs`:
+
+```bash
+./run.sh plan        # Terraform plan (CI treats exit code 2 as "changes", ✅)
+./run.sh apply       # Terraform apply (updates task definition & service)
+./run.sh outputs     # show outputs (ECR URL, cluster, service, etc.)
+./run.sh url         # print ALB URL
+```
+
+From repo root (local helper; CI does this automatically):
+
+```bash
+# build/push to ECR with a custom tag
+IMAGE_TAG=my-feature ./infra/dev-ecs/run.sh ecr-push
+```
+
+---
+
+## 🧰 Troubleshooting
+
+- **503 from ALB** → wrong `IMAGE_TAG` or task unhealthy.
+  - Redeploy with a valid ECR tag, check ECS service events + CloudWatch logs.
+- **403 in CI plan/apply** → missing read action in deploy role.
+  - Re‑apply `infra/bootstrap-foundation` (policy additions).
+- **Local TF asks for inputs** → export `TF_BACKEND_BUCKET` & `TF_BACKEND_DYNAMO_TABLE`.
+
+---
+
+## 🗺️ Roadmap
+
+- HTTPS (ACM + 443 listener) 🔒
+- Blue/Green or canary on ECS 🎛️
+- WAFv2 on ALB 🛡️
+- Prod/stage environments (workspaces or per‑env folders) 🌐
 
 ---
 
 ## 📜 License
 
-MIT License. See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
