@@ -37,3 +37,14 @@ variable "trusted_role_arns" {
   description = "Optional AWS IAM role ARNs allowed to assume the CI role (break-glass or engineering shared)"
   default     = []
 }
+
+variable "tf_state_bucket" {
+  description = "S3 bucket where TF state for dev-ecs is stored"
+  type        = string
+}
+
+variable "tf_lock_table" {
+  description = "DynamoDB table used for TF state locking"
+  type        = string
+}
+

@@ -20,6 +20,12 @@ locals {
   # If you later add a *task runtime* role, prefer naming: "${var.name_prefix}-${local.environment}-ecs-task"
   ecs_task_runtime_role_arn = "arn:aws:iam::${local.account_id}:role/${local.name}-ecs-task"
 
+  tf_state_bucket_arn  = "arn:aws:s3:::${var.tf_state_bucket}"
+  # state file lives under the dev-ecs prefix
+  tf_state_objects_arn = "arn:aws:s3:::${var.tf_state_bucket}/dev-ecs/*"
+  tf_lock_table_arn    = "arn:aws:dynamodb:${var.aws_region}:${local.account_id}:table/${var.tf_lock_table}"
+
+
   tags = {
     Name        = var.name_prefix       # <- always "fastapi"
     ManagedBy   = "Terraform"
@@ -177,6 +183,44 @@ data "aws_iam_policy_document" "deploy_min" {
       "ecr:GetDownloadUrlForLayer"
     ]
     resources = [local.ecr_repo_arn]
+  }
+
+  # S3 backend: bucket-level ops
+  statement {
+    sid     = "S3TfStateBucket"
+    effect  = "Allow"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation"
+    ]
+    resources = [local.tf_state_bucket_arn]
+  }
+
+  # S3 backend: object-level ops on the dev-ecs prefix
+  statement {
+    sid     = "S3TfStateObjectRW"
+    effect  = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ]
+    resources = [local.tf_state_objects_arn]
+  }
+
+  # DynamoDB state lock table
+  statement {
+    sid     = "DdbTfLockRW"
+    effect  = "Allow"
+    actions = [
+      "dynamodb:DescribeTable",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:UpdateItem"
+    ]
+    resources = [local.tf_lock_table_arn]
   }
 }
 
