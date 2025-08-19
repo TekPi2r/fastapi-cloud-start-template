@@ -88,7 +88,7 @@ plan_cmd() {
   terraform validate
   # shellcheck disable=SC2046
   set +e
-  terraform plan -input=false -no-color -detailed-exitcode -out=tfplan $(tf_vars)
+  terraform plan -input=false -no-color -detailed-exitcode $(tf_vars)
   ec=$?
   set -e
 
@@ -104,7 +104,7 @@ plan_cmd() {
 
 apply_cmd() {
   # shellcheck disable=SC2046
-  terraform apply -input=false -auto-approve tfplan $(tf_vars)
+  terraform apply -input=false -auto-approve $(tf_vars)
 }
 
 destroy_cmd() {
