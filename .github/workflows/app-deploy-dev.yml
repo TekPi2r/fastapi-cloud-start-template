@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           TAG="${{ github.event.inputs.image_tag }}"
-          if [ -z "$TAG" ]; then TAG="${GITHUB_SHA::12}"; fi
+          if [ -z "$TAG" ]; then TAG="latest-dev"; fi
           echo "image_tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Terraform apply
