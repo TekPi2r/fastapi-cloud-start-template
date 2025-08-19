@@ -247,7 +247,7 @@ data "aws_iam_policy_document" "deploy_min" {
       "elasticloadbalancing:DescribeTargetGroups",
       "elasticloadbalancing:DescribeRules",
       "elasticloadbalancing:DescribeTargetHealth",
-      "elasticloadbalancing:DescribeTags"       # <- add this
+      "elasticloadbalancing:DescribeTags"
     ]
     resources = ["*"]
   }
@@ -348,6 +348,37 @@ data "aws_iam_policy_document" "deploy_min" {
     effect  = "Allow"
     actions = ["elasticloadbalancing:DescribeTargetGroupAttributes"]
     resources = ["*"]
+  }
+
+  # ECR: lecture de la lifecycle policy du repo (utilisé par aws_ecr_lifecycle_policy)
+  statement {
+    sid     = "EcrLifecycleRead"
+    effect  = "Allow"
+    actions = [
+      "ecr:GetLifecyclePolicy",
+      "ecr:GetLifecyclePolicyPreview"
+    ]
+    resources = [local.ecr_repo_arn]
+  }
+
+  # ELBv2: lecture des attributs du listener
+  statement {
+    sid     = "ElbReadListenerAttributes"
+    effect  = "Allow"
+    actions = ["elasticloadbalancing:DescribeListenerAttributes"]
+    resources = ["*"]
+  }
+
+  # ECS: tagging des resources (task definition, service…)
+  statement {
+    sid     = "EcsTagging"
+    effect  = "Allow"
+    actions = [
+      "ecs:TagResource",
+      "ecs:UntagResource",
+      "ecs:ListTagsForResource"
+    ]
+    resources = ["arn:aws:ecs:${var.aws_region}:${local.account_id}:*"]
   }
 }
 
