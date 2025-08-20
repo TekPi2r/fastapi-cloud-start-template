@@ -101,6 +101,28 @@ jobs:
           chmod +x run.sh
           ./run.sh apply
 
+      - name: Wait for ECS service to be stable
+        run: |
+          CLUSTER=$(terraform output -raw cluster_name)
+          SERVICE=$(terraform output -raw service_name)
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+
+      - name: Smoke check via ALB
+        run: |
+          ALB=$(terraform output -raw alb_dns_name)
+          echo "ALB: http://$ALB/"
+          # On tente 5 fois au cas où le container bootstrappe
+          for i in {1..5}; do
+            if curl -fsS "http://$ALB/"; then
+              echo "Smoke OK"
+              exit 0
+            fi
+            echo "Retrying in 5s... ($i/5)"
+            sleep 5
+          done
+          echo "Smoke check failed"
+          exit 1
+
       - name: Show ALB URL
         working-directory: infra/dev-ecs
         run: ./run.sh url || true
