@@ -27,9 +27,17 @@ jobs:
     name: Test (PR)
     environment: dev
     env:
+        MONGO_URL: mongodb://localhost:27017
         AWS_REGION: ${{ vars.AWS_REGION }}
         NAME_PREFIX: ${{ vars.NAME_PREFIX }}     # fastapi
         ENVIRONMENT:   ${{ vars.ENVIRONMENT }}
+    services:
+      mongo:
+        image: mongo:6
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s --health-timeout=5s --health-retries=5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
