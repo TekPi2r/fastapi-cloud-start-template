@@ -89,3 +89,22 @@ variable "container_port" {
   type        = number
   default     = 8000
 }
+
+# ALB Settings
+variable "min_capacity" {
+  description = "Minimum CPU capacity used by the app."
+  type        = number
+  default     = 1
+}
+
+variable "max_capacity" {
+  description = "Maxium CPU capacity that can be used by the app."
+  type        = number
+  default     = 3
+}
+
+variable "target_cpu" {
+  description = "Target CPU to be used by the app."
+  type        = number
+  default     = 70
+}

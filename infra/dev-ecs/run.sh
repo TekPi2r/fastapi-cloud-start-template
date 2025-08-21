@@ -97,6 +97,7 @@ plan_cmd() {
     exit 1
   elif [ "$ec" -eq 2 ]; then
     echo "Terraform plan found changes (expected in deploy)."
+    exit 0
   else
     echo "No changes."
   fi
@@ -125,6 +126,7 @@ ecr_login_cmd() {
     | docker login --username AWS --password-stdin "${REPO_URL%/*}"
 }
 
+# Only for local test
 ecr_push_cmd() {
   require docker
   ecr_login_cmd
@@ -135,7 +137,7 @@ ecr_push_cmd() {
     REPO_URL="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NAME_PREFIX}-${ENVIRONMENT}-ecr"
   fi
   docker buildx create --use >/dev/null 2>&1 || true
-  docker buildx build --platform linux/amd64 -t "${REPO_URL}:${IMAGE_TAG}" --push .
+  docker buildx build --platform linux/amd64 -t "${REPO_URL}:${IMAGE_TAG}" --push ../../.
 }
 
 url_cmd() {

@@ -107,7 +107,7 @@ resource "aws_lb_target_group" "app" {
   vpc_id      = local.effective_vpc_id
 
   health_check {
-    path                = "/"
+    path                = "/health"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     timeout             = 5

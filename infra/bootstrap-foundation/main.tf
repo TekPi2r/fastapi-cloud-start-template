@@ -380,6 +380,47 @@ data "aws_iam_policy_document" "deploy_min" {
     ]
     resources = ["arn:aws:ecs:${var.aws_region}:${local.account_id}:*"]
   }
+
+# Application Auto Scaling for ECS service
+statement {
+  sid     = "AppAutoScalingEcs"
+  effect  = "Allow"
+  actions = [
+    "application-autoscaling:RegisterScalableTarget",
+    "application-autoscaling:DeregisterScalableTarget",
+    "application-autoscaling:PutScalingPolicy",
+    "application-autoscaling:DeleteScalingPolicy",
+    "application-autoscaling:Describe*"
+  ]
+  resources = ["*"]
+}
+
+  # Allow creation of the service-linked role for App Auto Scaling (first time)
+  statement {
+    sid     = "IamCreateServiceLinkedRoleForAppAS"
+    effect  = "Allow"
+    actions = ["iam:CreateServiceLinkedRole"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values   = ["ecs.application-autoscaling.amazonaws.com"]
+    }
+  }
+
+  # CloudWatch alarms management
+  statement {
+    sid     = "CloudWatchAlarmsManage"
+    effect  = "Allow"
+    actions = [
+      "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:ListMetrics",
+      "cloudwatch:GetMetricData"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "fastapi_deploy_min" {
