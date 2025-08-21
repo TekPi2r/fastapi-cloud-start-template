@@ -5,7 +5,7 @@ from app.api.routes import router as api_router
 
 app = FastAPI()
 
-@app.get("/health")
+@app.get("/")
 def health_check():
     return {"status": "ok"}
 
