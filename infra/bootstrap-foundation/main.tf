@@ -381,19 +381,19 @@ data "aws_iam_policy_document" "deploy_min" {
     resources = ["arn:aws:ecs:${var.aws_region}:${local.account_id}:*"]
   }
 
-# Application Auto Scaling for ECS service
-statement {
-  sid     = "AppAutoScalingEcs"
-  effect  = "Allow"
-  actions = [
-    "application-autoscaling:RegisterScalableTarget",
-    "application-autoscaling:DeregisterScalableTarget",
-    "application-autoscaling:PutScalingPolicy",
-    "application-autoscaling:DeleteScalingPolicy",
-    "application-autoscaling:Describe*"
-  ]
-  resources = ["*"]
-}
+  # Application Auto Scaling for ECS service
+  statement {
+    sid     = "AppAutoScalingEcs"
+    effect  = "Allow"
+    actions = [
+      "application-autoscaling:RegisterScalableTarget",
+      "application-autoscaling:DeregisterScalableTarget",
+      "application-autoscaling:PutScalingPolicy",
+      "application-autoscaling:DeleteScalingPolicy",
+      "application-autoscaling:Describe*"
+    ]
+    resources = ["*"]
+  }
 
   # Allow creation of the service-linked role for App Auto Scaling (first time)
   statement {
@@ -419,6 +419,38 @@ statement {
       "cloudwatch:ListMetrics",
       "cloudwatch:GetMetricData"
     ]
+    resources = ["*"]
+  }
+
+  # CloudWatch Alarms: tags are read during plan and set during apply
+  statement {
+    sid     = "CloudWatchAlarmsTagging"
+    effect  = "Allow"
+    actions = [
+      "cloudwatch:ListTagsForResource",  # needed at plan time
+      "cloudwatch:TagResource",          # needed at apply time (you tag alarms)
+      "cloudwatch:UntagResource"
+    ]
+    resources = [
+      "arn:aws:cloudwatch:${var.aws_region}:${local.account_id}:alarm:fastapi-dev-*"
+    ]
+  }
+
+  # App Auto Scaling: provider checks for the SLR existence
+  statement {
+    sid     = "IamReadSlrAppAS"
+    effect  = "Allow"
+    actions = ["iam:GetRole"]
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+    ]
+  }
+
+  # (Optional but safe) App Auto Scaling tag reads — some provider versions call this
+  statement {
+    sid     = "AppAutoScalingListTags"
+    effect  = "Allow"
+    actions = ["application-autoscaling:ListTagsForResource"]
     resources = ["*"]
   }
 }

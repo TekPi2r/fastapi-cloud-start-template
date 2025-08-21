@@ -102,6 +102,7 @@ jobs:
           ./run.sh apply
 
       - name: Wait for ECS service to be stable
+        working-directory: infra/dev-ecs
         run: |
           CLUSTER=$(terraform output -raw cluster_name)
           SERVICE=$(terraform output -raw service_name)
