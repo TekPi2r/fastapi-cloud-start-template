@@ -22,3 +22,20 @@ resource "aws_appautoscaling_policy" "cpu_target" {
     scale_out_cooldown = 60
   }
 }
+
+resource "aws_appautoscaling_policy" "mem_target" {
+  name               = "memory-70"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.api.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = 70
+    scale_in_cooldown  = 60
+    scale_out_cooldown = 60
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}
