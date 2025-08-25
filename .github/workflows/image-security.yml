@@ -1,0 +1,27 @@
+name: image-security
+on:
+  push:
+    branches: [main]
+    paths: ["Dockerfile", "requirements.txt", "app/**"]
+  pull_request:
+    paths: ["Dockerfile", "requirements.txt", "app/**"]
+  workflow_dispatch:
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        run: docker build -t local/fastapi:scan .
+
+      - name: Trivy scan (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: local/fastapi:scan
+          format: table
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
