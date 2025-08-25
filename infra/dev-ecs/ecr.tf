@@ -13,18 +13,22 @@ resource "aws_ecr_repository" "api" {
   tags = local.tags
 }
 
-resource "aws_ecr_lifecycle_policy" "keep_last_10" {
+resource "aws_ecr_lifecycle_policy" "keep_curated" {
   repository = aws_ecr_repository.api.name
   policy = jsonencode({
-    rules = [{
-      rulePriority = 1
-      description  = "Keep last 10 images"
-      selection = {
-        tagStatus   = "any"
-        countType   = "imageCountMoreThan"
-        countNumber = 10
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire untagged images, keep last 2"
+        selection    = { tagStatus = "untagged", countType = "imageCountMoreThan", countNumber = 2 }
+        action       = { type = "expire" }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep last 10 any-tag"
+        selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 10 }
+        action       = { type = "expire" }
       }
-      action = { type = "expire" }
-    }]
+    ]
   })
 }

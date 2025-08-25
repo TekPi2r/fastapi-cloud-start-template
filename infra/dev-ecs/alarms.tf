@@ -32,3 +32,37 @@ resource "aws_cloudwatch_metric_alarm" "tg_unhealthy" {
   treat_missing_data = "notBreaching"
   tags               = local.tags
 }
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  alarm_name          = "${local.name}-svc-cpu-high"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  dimensions = {
+    ClusterName = aws_ecs_cluster.this.name
+    ServiceName = aws_ecs_service.api.name
+  }
+  treat_missing_data = "notBreaching"
+  tags               = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_mem_high" {
+  alarm_name          = "${local.name}-svc-mem-high"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  dimensions = {
+    ClusterName = aws_ecs_cluster.this.name
+    ServiceName = aws_ecs_service.api.name
+  }
+  treat_missing_data = "notBreaching"
+  tags               = local.tags
+}
