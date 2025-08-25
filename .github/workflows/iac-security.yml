@@ -1,0 +1,39 @@
+name: iac-security
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/**"]
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write   # <-- décommente si tu uploades des rapports SARIF
+    steps:
+      - uses: actions/checkout@v4
+
+      # TFSec (sans input non supporté)
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: infra
+          # Si tu veux durcir: décommente la ligne suivante
+          # tfsec_args: --force-all-dirs --minimum-severity HIGH
+
+      # Export rapport SARIF <-- décommente si tu uploades des rapports SARIF
+      - name: Export SARIF
+        run: tfsec infra --format sarif --out tfsec.sarif || true
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+
+      # Checkov
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          framework: terraform
+          quiet: true
+          soft_fail: false
