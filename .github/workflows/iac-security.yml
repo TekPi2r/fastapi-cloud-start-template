@@ -38,7 +38,6 @@ jobs:
         with:
           directory: infra
           framework: terraform
-          config_file: .checkov.yml     # garde tes skip-check ici
           quiet: true
           soft_fail: false              # mets true si tu veux juste reporter
           output_format: cli,sarif
