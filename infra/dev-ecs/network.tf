@@ -48,7 +48,9 @@ locals {
   )
 }
 
+
 resource "aws_security_group" "alb" {
+  #checkov:skip=CKV_AWS_260: "ALB public, HTTPS enforce; HTTP pour redirection"
   name        = "${local.name}-alb-sg"
   description = "ALB ingress 80/443"
   vpc_id      = local.effective_vpc_id
@@ -179,6 +181,7 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "http" {
+  #checkov:skip=CKV_AWS_2: "Ensure ALB protocol is HTTPS"
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"  #tfsec:ignore:aws-elb-http-not-used exp:2025-10-31
