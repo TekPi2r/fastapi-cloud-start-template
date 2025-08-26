@@ -23,7 +23,7 @@ jobs:
           working_directory: infra
           format: sarif
           additional_args: --out tfsec.sarif
-          soft_fail: false      # mets true si tu ne veux pas casser le build
+          soft_fail: false      # true pour casser le build si fail
 
       - name: Upload tfsec SARIF
         if: success() || failure()
@@ -39,7 +39,7 @@ jobs:
           directory: infra
           framework: terraform
           quiet: true
-          soft_fail: false              # mets true si tu veux juste reporter
+          soft_fail: false              # true pour casser le build si fail
           output_format: cli,sarif
           output_file_path: console,checkov.sarif
           config_file: .checkov.yml
