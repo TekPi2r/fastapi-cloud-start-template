@@ -42,6 +42,7 @@ jobs:
           soft_fail: false              # mets true si tu veux juste reporter
           output_format: cli,sarif
           output_file_path: console,checkov.sarif
+          config_file: .checkov.yml
 
       - name: Upload Checkov SARIF
         if: success() || failure()
