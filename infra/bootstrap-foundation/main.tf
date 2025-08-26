@@ -440,7 +440,7 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
-      values   = ["ecs.application-autoscaling.amazonaws.com"]
+      values   = ["ecs.amazonaws.com","application-autoscaling.amazonaws.com","elasticloadbalancing.amazonaws.com"]
     }
   }
 

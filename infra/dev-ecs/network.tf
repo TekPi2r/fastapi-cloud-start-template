@@ -141,6 +141,7 @@ resource "aws_security_group" "ecs_tasks" {
 
 #tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "app" {
+  #checkov:skip=CKV2_AWS_20: "Ensure that ALB redirects HTTP requests into HTTPS ones"
   access_logs {
     bucket  = aws_s3_bucket.alb_logs.id
     enabled = true
@@ -207,6 +208,8 @@ resource "aws_lb_listener" "https" {
   port              = 443
   protocol          = "HTTPS"
   certificate_arn   = var.acm_certificate_arn
+
+  ssl_policy = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   default_action {
     type             = "forward"
