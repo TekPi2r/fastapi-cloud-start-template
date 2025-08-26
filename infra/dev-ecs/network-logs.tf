@@ -1,10 +1,11 @@
-resource "aws_s3_bucket" "alb_logs" { #checkov:skip=CKV_AWS_18 "Ce bucket est déjà un sink de logs ALB"
+resource "aws_s3_bucket" "alb_logs" { #checkov:skip=CKV_AWS_18 "Ce bucket est déjà un sink de logs ALB" #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
+  # Ce bucket est un sink de logs ALB ; chaîner des logs sur un bucket de logs n’a pas de valeur.
   bucket        = "${var.name_prefix}-${var.environment}-alb-logs"
   force_destroy = true
   tags          = local.tags
 }
 
-# 🔒 Bloquer tout public access
+# Bloquer tout public access
 resource "aws_s3_bucket_public_access_block" "alb_logs" {
   bucket                  = aws_s3_bucket.alb_logs.id
   block_public_acls       = true
@@ -13,19 +14,19 @@ resource "aws_s3_bucket_public_access_block" "alb_logs" {
   restrict_public_buckets = true
 }
 
-# 👤 Ownership (requis pour bonnes pratiques modernes)
+# Ownership (requis pour bonnes pratiques modernes)
 resource "aws_s3_bucket_ownership_controls" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
   rule { object_ownership = "BucketOwnerEnforced" }
 }
 
-# 🗃️ Versioning (check “enable-versioning”)
+# Versioning (check “enable-versioning”)
 resource "aws_s3_bucket_versioning" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
   versioning_configuration { status = "Enabled" }
 }
 
-# 🔐 SSE (SSE-S3 suffit ici ; éviter SSE-KMS qui complique la livraison)
+# SSE (SSE-S3 suffit ici ; éviter SSE-KMS qui complique la livraison)
 # tfsec se plaint d'absence de CMK → on justifie l'exception :
 #tfsec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
@@ -37,7 +38,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
   }
 }
 
-# 🚫 Deny non-TLS
+# Deny non-TLS
 data "aws_iam_policy_document" "alb_logs_bucket_policy" {
   statement {
     sid     = "DenyInsecureTransport"

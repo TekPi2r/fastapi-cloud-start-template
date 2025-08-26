@@ -181,12 +181,11 @@ resource "aws_lb_target_group" "app" {
 }
 
 # Justification: ALB public avec redirection HTTP->HTTPS contrôlée.
-#tfsec:ignore:aws-elb-http-not-used
 #checkov:skip=CKV_AWS_2 reason=Listener HTTP uniquement pour redirection 301 vers HTTPS.
-resource "aws_lb_listener" "http" { 
+resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
-  protocol          = "HTTP"
+  protocol          = "HTTP"  #tfsec:ignore:aws-elb-http-not-used exp:2025-10-31
 
   default_action {
     type             = var.acm_certificate_arn != "" ? "redirect" : "forward"
@@ -223,19 +222,11 @@ resource "aws_security_group" "vpce" {
 
   # Le trafic sortant des tasks (443) vers les endpoints
   ingress {
-    description    = "HTTPS from ECS tasks"
+    description     = "From ECS tasks to VPC endpoints (TLS)"
     from_port      = 443
     to_port        = 443
     protocol       = "tcp"
     security_groups = [aws_security_group.ecs_tasks.id]
-  }
-
-  # Egress des endpoints vers AWS (par défaut)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = local.tags
