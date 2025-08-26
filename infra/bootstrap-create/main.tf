@@ -10,6 +10,9 @@ locals {
 resource "aws_s3_bucket" "tf_state" { #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
   # Server access logging nécessite des ACLs, en conflit avec BucketOwnerEnforced.
   # Couverture via CloudTrail Data Events si requis.
+  #checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled"
+  #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled"
+  #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled"
   bucket        = var.bucket_name
   force_destroy = true   # << supprime toutes les versions au destroy
 

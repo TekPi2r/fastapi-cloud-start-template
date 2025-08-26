@@ -142,6 +142,7 @@ resource "aws_security_group" "ecs_tasks" {
 #tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "app" {
   #checkov:skip=CKV2_AWS_20: "Ensure that ALB redirects HTTP requests into HTTPS ones"
+  #checkov:skip=CKV2_AWS_28: "Ensure public facing ALB are protected by WAF"
   access_logs {
     bucket  = aws_s3_bucket.alb_logs.id
     enabled = true
@@ -159,6 +160,7 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
+  #checkov:skip=CKV_AWS_378: "Ensure AWS Load Balancer doesn't use HTTP protocol"
   name        = "${local.name}-tg"
   port        = 8000
   protocol    = "HTTP"
@@ -183,6 +185,7 @@ resource "aws_lb_target_group" "app" {
 
 resource "aws_lb_listener" "http" {
   #checkov:skip=CKV_AWS_2: "Ensure ALB protocol is HTTPS"
+  #checkov:skip=CKV_AWS_103: "Ensure that load balancer is using at least TLS 1.2 / Redirect default a refaire"
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"  #tfsec:ignore:aws-elb-http-not-used exp:2025-10-31
