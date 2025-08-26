@@ -9,28 +9,44 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read             # requis pour upload-sarif sur repo privé
       pull-requests: write
-      security-events: write
+      security-events: write    # requis pour le Security tab
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tfsec and emit SARIF
+      # --- tfsec -> SARIF ---
+      - name: tfsec (SARIF)
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: infra
           format: sarif
-          soft_fail: true
+          additional_args: --out tfsec.sarif
+          soft_fail: false      # mets true si tu ne veux pas casser le build
 
-      - name: Export SARIF
-        run: tfsec infra --format sarif --out tfsec.sarif || true
-      - uses: github/codeql-action/upload-sarif@v3
+      - name: Upload tfsec SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: tfsec.sarif
+          category: tfsec
 
+      # --- Checkov -> SARIF ---
       - name: Checkov
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: infra
           framework: terraform
+          config_file: .checkov.yml     # garde tes skip-check ici
           quiet: true
-          soft_fail: false
+          soft_fail: false              # mets true si tu veux juste reporter
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+
+      - name: Upload Checkov SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
