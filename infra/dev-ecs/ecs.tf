@@ -1,6 +1,11 @@
 resource "aws_ecs_cluster" "this" {
   name = "${local.name}-cluster"
   tags = local.tags
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 resource "aws_ecs_task_definition" "api" {
@@ -59,9 +64,9 @@ resource "aws_ecs_service" "api" {
   }
 
   network_configuration {
-    subnets          = local.selected_subnets
+    subnets          = local.private_subnets
     security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {

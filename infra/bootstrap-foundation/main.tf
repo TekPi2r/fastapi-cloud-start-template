@@ -81,29 +81,26 @@ data "aws_iam_policy_document" "oidc_trust" {
 
 # Least-privilege policy for Build pipeline: push images to one ECR repo
 data "aws_iam_policy_document" "build_min" {
-  # ECR auth + describe (global)
+  # ECR auth -> seule action globale permise nécessaire
   statement {
     sid     = "EcrAuth"
     effect  = "Allow"
     actions = [
       "ecr:GetAuthorizationToken",
-      "ecr:DescribeRepositories",
-      "ecr:ListImages",
-      "ecr:BatchGetImage"
     ]
     resources = ["*"]
   }
 
-  # Push to the scoped repository only
+  # Push sur TON repo uniquement
   statement {
     sid     = "EcrPushScoped"
     effect  = "Allow"
     actions = [
       "ecr:BatchCheckLayerAvailability",
-      "ecr:InitiateLayerUpload",
-      "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
-      "ecr:PutImage"
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart"
     ]
     resources = [local.ecr_repo_arn]
   }
@@ -140,16 +137,46 @@ resource "aws_iam_role_policy_attachment" "fastapi_build_attach" {
 # ======================
 # Role: fastapi-*-deploy
 # ======================
+# Lookup de la clé via l’alias créé dans bootstrap-create
+data "aws_kms_alias" "tfstate" {
+  name = "alias/${var.name_prefix}-tfstate"
+}
 
 # Least-privilege policy for Deploy pipeline: register task def + update service
+#checkov:skip=CKV_AWS_111 reason=Certains appels d'écriture (autoscaling/policies/alarms) ne supportent pas de resource scoping utile pendant le déploiement.
+#checkov:skip=CKV_AWS_356 reason=Describe*/List*/PutMetricAlarm/CreateServiceLinkedRole exigent souvent Resource="*".
 data "aws_iam_policy_document" "deploy_min" {
+  # KMS pour lire/écrire le state S3 (backend Terraform)
+  statement {
+    sid     = "KmsUseTfStateKey"
+    effect  = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+      "kms:GenerateDataKeyWithoutPlaintext",
+      "kms:DescribeKey"
+    ]
+    # La data source expose l'ID de clé (UUID). On construit l’ARN proprement :
+    resources = [
+      "arn:aws:kms:${var.aws_region}:${local.account_id}:key/${data.aws_kms_alias.tfstate.target_key_id}"
+    ]
+  }
+
   # ECS read + mutate only what we need
   statement {
     sid     = "EcsCore"
     effect  = "Allow"
     actions = [
-      "ecs:Describe*",
-      "ecs:List*",
+      # Describe/List strictement nécessaires au plan/apply
+      "ecs:DescribeClusters",
+      "ecs:DescribeServices",
+      "ecs:DescribeTaskDefinition",
+      "ecs:ListClusters",
+      "ecs:ListServices",
+      "ecs:ListTaskDefinitions",
+
+      # Mutations explicitement listées
       "ecs:RegisterTaskDefinition",
       "ecs:DeregisterTaskDefinition",
       "ecs:UpdateService"
@@ -237,6 +264,8 @@ data "aws_iam_policy_document" "deploy_min" {
     resources = ["*"]
   }
 
+  #tfsec:ignore:aws-iam-no-policy-wildcards
+  # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # ALB/Target Groups describe pour rafraîchir aws_lb / aws_lb_target_group / listener
   statement {
     sid     = "ElbReadDescribe"
@@ -252,6 +281,8 @@ data "aws_iam_policy_document" "deploy_min" {
     resources = ["*"]
   }
 
+  #tfsec:ignore:aws-iam-no-policy-wildcards
+  # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # CloudWatch Logs pour aws_cloudwatch_log_group
   statement {
     sid     = "LogsReadDescribe"
@@ -381,6 +412,8 @@ data "aws_iam_policy_document" "deploy_min" {
     resources = ["arn:aws:ecs:${var.aws_region}:${local.account_id}:*"]
   }
 
+  #tfsec:ignore:aws-iam-no-policy-wildcards
+  # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # Application Auto Scaling for ECS service
   statement {
     sid     = "AppAutoScalingEcs"
@@ -395,6 +428,8 @@ data "aws_iam_policy_document" "deploy_min" {
     resources = ["*"]
   }
 
+  #tfsec:ignore:aws-iam-no-policy-wildcards
+  # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # Allow creation of the service-linked role for App Auto Scaling (first time)
   statement {
     sid     = "IamCreateServiceLinkedRoleForAppAS"
@@ -408,6 +443,8 @@ data "aws_iam_policy_document" "deploy_min" {
     }
   }
 
+  #tfsec:ignore:aws-iam-no-policy-wildcards
+  # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # CloudWatch alarms management
   statement {
     sid     = "CloudWatchAlarmsManage"
