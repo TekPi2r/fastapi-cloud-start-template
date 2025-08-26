@@ -1,4 +1,4 @@
-resource "aws_s3_bucket" "alb_logs" { #checkov:skip=CKV_AWS_18 "Ce bucket est déjà un sink de logs ALB" #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
+resource "aws_s3_bucket" "alb_logs" { #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
   # Ce bucket est un sink de logs ALB ; chaîner des logs sur un bucket de logs n’a pas de valeur.
   bucket        = "${var.name_prefix}-${var.environment}-alb-logs"
   force_destroy = true

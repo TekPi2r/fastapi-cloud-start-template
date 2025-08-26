@@ -54,7 +54,6 @@ resource "aws_security_group" "alb" {
   vpc_id      = local.effective_vpc_id
 
   # Justification: point d'entrée public contrôlé (ALB), TLS/redirect en place.
-  #checkov:skip=CKV_AWS_260: "ALB public, HTTPS enforce; HTTP pour redirection"
   #tfsec:ignore:aws-ec2-no-public-ingress-sgr
   ingress {
     description = "HTTP"
@@ -65,7 +64,6 @@ resource "aws_security_group" "alb" {
   }
 
   # Justification: point d'entrée public contrôlé (ALB), TLS/redirect en place.
-  #checkov:skip=CKV_AWS_260: "ALB public, HTTPS enforce; HTTP pour redirection"
   #tfsec:ignore:aws-ec2-no-public-ingress-sgr
   dynamic "ingress" {
     for_each = var.acm_certificate_arn != "" ? [1] : []
@@ -180,8 +178,6 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
-# Justification: ALB public avec redirection HTTP->HTTPS contrôlée.
-#checkov:skip=CKV_AWS_2 reason=Listener HTTP uniquement pour redirection 301 vers HTTPS.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80

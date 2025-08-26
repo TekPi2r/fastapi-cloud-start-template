@@ -7,7 +7,7 @@ locals {
 }
 
 # S3 bucket for Terraform state
-resource "aws_s3_bucket" "tf_state" { #checkov:skip=CKV_AWS_18: "Server access logging requiert ACLs; conflit avec BucketOwnerEnforced. On couvrira via CloudTrail Data Events si exigé."  #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
+resource "aws_s3_bucket" "tf_state" { #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
   # Server access logging nécessite des ACLs, en conflit avec BucketOwnerEnforced.
   # Couverture via CloudTrail Data Events si requis.
   bucket        = var.bucket_name

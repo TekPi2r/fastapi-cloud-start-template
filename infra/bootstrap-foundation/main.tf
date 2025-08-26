@@ -143,8 +143,6 @@ data "aws_kms_alias" "tfstate" {
 }
 
 # Least-privilege policy for Deploy pipeline: register task def + update service
-#checkov:skip=CKV_AWS_111 reason=Certains appels d'écriture (autoscaling/policies/alarms) ne supportent pas de resource scoping utile pendant le déploiement.
-#checkov:skip=CKV_AWS_356 reason=Describe*/List*/PutMetricAlarm/CreateServiceLinkedRole exigent souvent Resource="*".
 data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wildcards exp:2025-08-27
   # Déploiement infra multi-services: wildcard temporaire, TODO affiner par ARN (ECS, ALB, Logs, ECR, AppAutoScaling).
   # KMS pour lire/écrire le state S3 (backend Terraform)
