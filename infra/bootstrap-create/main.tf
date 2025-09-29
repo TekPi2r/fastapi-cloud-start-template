@@ -6,6 +6,8 @@ locals {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "tf_state" { #tfsec:ignore:aws-s3-enable-bucket-logging exp:2025-10-31
   # Server access logging nécessite des ACLs, en conflit avec BucketOwnerEnforced.
@@ -14,7 +16,7 @@ resource "aws_s3_bucket" "tf_state" { #tfsec:ignore:aws-s3-enable-bucket-logging
   #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled"
   #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled"
   bucket        = var.bucket_name
-  force_destroy = true   # << supprime toutes les versions au destroy
+  force_destroy = true # << supprime toutes les versions au destroy
 
   tags = local.tags
 }
@@ -143,14 +145,19 @@ resource "aws_kms_key" "tf_locks" {
       {
         Sid: "AllowDynamoDBUseOfTheKey",
         Effect: "Allow",
-        Principal: { Service: "dynamodb.${var.aws_region}.amazonaws.com" },
+        Principal: { Service: "dynamodb.amazonaws.com" },
         Action: [
           "kms:Encrypt","kms:Decrypt","kms:ReEncrypt*",
           "kms:GenerateDataKey*","kms:DescribeKey"
         ],
         Resource: "*",
         Condition: {
-          StringEquals: { "aws:SourceAccount": "${data.aws_caller_identity.current.account_id}" }
+          StringEquals: {
+            "aws:SourceAccount": "${data.aws_caller_identity.current.account_id}"
+          },
+          StringLike: {
+            "kms:ViaService": "dynamodb.${var.aws_region}.amazonaws.com"
+          }
         }
       }
     ]
