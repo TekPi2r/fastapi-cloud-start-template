@@ -1,16 +1,17 @@
+#tfsec:ignore:aws-ecr-enforce-immutable-repository
+# Justification: env de démo; retag contrôlé par CI. Passage à IMMUTABLE quand tags = SHA.
 resource "aws_ecr_repository" "api" {
-  name                 = "${local.name}-ecr" # <- fastapi-dev-ecr
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+  name                 = "${local.name}-ecr"
+  image_tag_mutability = "IMMUTABLE"
 
   encryption_configuration {
-    encryption_type = "AES256"
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.ecr.arn
   }
-  force_delete         = true   # << supprime aussi si des images restent
-  tags = local.tags
+
+  image_scanning_configuration { scan_on_push = true }
+  force_delete = true
+  tags         = local.tags
 }
 
 resource "aws_ecr_lifecycle_policy" "keep_curated" {
@@ -31,4 +32,15 @@ resource "aws_ecr_lifecycle_policy" "keep_curated" {
       }
     ]
   })
+}
+
+resource "aws_kms_key" "ecr" {
+  description         = "KMS key for ECR"
+  enable_key_rotation = true
+  tags                = local.tags
+}
+
+resource "aws_kms_alias" "ecr" {
+  name          = "alias/${local.name}-ecr"
+  target_key_id = aws_kms_key.ecr.key_id
 }

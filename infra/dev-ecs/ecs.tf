@@ -1,6 +1,11 @@
 resource "aws_ecs_cluster" "this" {
   name = "${local.name}-cluster"
   tags = local.tags
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 resource "aws_ecs_task_definition" "api" {
@@ -21,6 +26,10 @@ resource "aws_ecs_task_definition" "api" {
         containerPort = 8000
         protocol      = "tcp"
       }]
+      
+      user = "1000",
+      readonlyRootFilesystem = "true",
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -29,6 +38,7 @@ resource "aws_ecs_task_definition" "api" {
           awslogs-stream-prefix = "api"
         }
       }
+      
       environment = [
         { name = "ENV", value = "dev" },
         { name = "PORT", value = "8000" }
@@ -54,9 +64,9 @@ resource "aws_ecs_service" "api" {
   }
 
   network_configuration {
-    subnets          = local.selected_subnets
+    subnets          = local.private_subnets
     security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
