@@ -34,9 +34,58 @@ resource "aws_ecr_lifecycle_policy" "keep_curated" {
   })
 }
 
+data "aws_iam_policy_document" "kms_ecr" {
+  statement {
+    sid    = "AllowAccountAdministration"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowECRUse"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecr.amazonaws.com"]
+    }
+
+    actions = [
+      "kms:CreateGrant",
+      "kms:DescribeKey",
+      "kms:GenerateDataKey*",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*"
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:CallerAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = [format("ecr.%s.%s", var.aws_region, data.aws_partition.current.dns_suffix)]
+    }
+  }
+}
+
 resource "aws_kms_key" "ecr" {
   description         = "KMS key for ECR"
   enable_key_rotation = true
+  policy              = data.aws_iam_policy_document.kms_ecr.json
   tags                = local.tags
 }
 

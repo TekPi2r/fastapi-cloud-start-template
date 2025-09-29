@@ -30,15 +30,15 @@ resource "aws_s3_bucket_versioning" "alb_logs" {
   versioning_configuration { status = "Enabled" }
 }
 
-# SSE (SSE-S3 suffit ici ; éviter SSE-KMS qui complique la livraison)
-# tfsec se plaint d'absence de CMK → on justifie l'exception :
-#tfsec:ignore:aws-s3-encryption-customer-key
+# Default to SSE-KMS using the dedicated CMK
 resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.alb_logs.arn
     }
+    bucket_key_enabled = true
   }
 }
 
