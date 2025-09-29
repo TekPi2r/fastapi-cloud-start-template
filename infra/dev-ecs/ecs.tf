@@ -26,8 +26,8 @@ resource "aws_ecs_task_definition" "api" {
         containerPort = 8000
         protocol      = "tcp"
       }]
-      
-      user = "1000",
+
+      user                   = "1000",
       readonlyRootFilesystem = "true",
 
       logConfiguration = {
@@ -38,7 +38,7 @@ resource "aws_ecs_task_definition" "api" {
           awslogs-stream-prefix = "api"
         }
       }
-      
+
       environment = [
         { name = "ENV", value = "dev" },
         { name = "PORT", value = "8000" }

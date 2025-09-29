@@ -34,13 +34,95 @@ resource "aws_ecr_lifecycle_policy" "keep_curated" {
   })
 }
 
+data "aws_iam_policy_document" "kms_ecr" {
+  statement {
+    sid    = "AllowAccountAdministration"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = [local.kms_account_root]
+    }
+
+    actions = [
+      "kms:CancelKeyDeletion",
+      "kms:CreateAlias",
+      "kms:DeleteAlias",
+      "kms:DescribeKey",
+      "kms:DisableKey",
+      "kms:DisableKeyRotation",
+      "kms:EnableKey",
+      "kms:EnableKeyRotation",
+      "kms:GetKeyPolicy",
+      "kms:GetKeyRotationStatus",
+      "kms:ListAliases",
+      "kms:ListGrants",
+      "kms:ListKeyPolicies",
+      "kms:ListResourceTags",
+      "kms:PutKeyPolicy",
+      "kms:ScheduleKeyDeletion",
+      "kms:TagResource",
+      "kms:UntagResource",
+      "kms:UpdateAlias"
+    ]
+
+    resources = [local.kms_key_arn_wildcard]
+
+    condition {
+      test     = "ForAnyValue:StringLike"
+      variable = "kms:ResourceAliases"
+      values   = [local.kms_ecr_alias_name]
+    }
+  }
+
+  statement {
+    sid    = "AllowECRUse"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecr.amazonaws.com"]
+    }
+
+    actions = [
+      "kms:CreateGrant",
+      "kms:DescribeKey",
+      "kms:GenerateDataKey*",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*"
+    ]
+
+    resources = [local.kms_key_arn_wildcard]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:CallerAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = [format("ecr.%s.%s", var.aws_region, data.aws_partition.current.dns_suffix)]
+    }
+
+    condition {
+      test     = "ForAnyValue:StringLike"
+      variable = "kms:ResourceAliases"
+      values   = [local.kms_ecr_alias_name]
+    }
+  }
+}
+
 resource "aws_kms_key" "ecr" {
   description         = "KMS key for ECR"
   enable_key_rotation = true
+  policy              = data.aws_iam_policy_document.kms_ecr.json
   tags                = local.tags
 }
 
 resource "aws_kms_alias" "ecr" {
-  name          = "alias/${local.name}-ecr"
+  name          = local.kms_ecr_alias_name
   target_key_id = aws_kms_key.ecr.key_id
 }

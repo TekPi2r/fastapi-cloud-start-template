@@ -51,7 +51,67 @@ resource "aws_s3_bucket_versioning" "tf_state" {
 resource "aws_kms_key" "tfstate" {
   description         = "KMS for Terraform state bucket"
   enable_key_rotation = true
-  tags                = local.tags
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid : "AllowRoot",
+        Effect : "Allow",
+        Principal : { AWS : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" },
+        Action : "kms:*",
+        Resource : "*"
+      },
+      {
+        Sid : "AllowS3UseOfTheKey",
+        Effect : "Allow",
+        Principal : { Service : "s3.amazonaws.com" },
+        Action : [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ],
+        Resource : "*",
+        Condition : {
+          StringEquals : {
+            "aws:SourceAccount" : "${data.aws_caller_identity.current.account_id}"
+          },
+          StringLike : {
+            "kms:ViaService" : "s3.${var.aws_region}.amazonaws.com",
+            "kms:EncryptionContext:aws:s3:arn" : [
+              aws_s3_bucket.tf_state.arn,
+              "${aws_s3_bucket.tf_state.arn}/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid : "AllowCloudTrailUseOfTheKey",
+        Effect : "Allow",
+        Principal : { Service : "cloudtrail.amazonaws.com" },
+        Action : [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey",
+          "kms:CreateGrant"
+        ],
+        Resource : "*",
+        Condition : {
+          StringEquals : {
+            "aws:SourceAccount" : "${data.aws_caller_identity.current.account_id}"
+          },
+          StringLike : {
+            "kms:ViaService" : "cloudtrail.${var.aws_region}.amazonaws.com",
+            "kms:EncryptionContext:aws:cloudtrail:arn" : "arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/*"
+          }
+        }
+      }
+    ]
+  })
+  tags = local.tags
 }
 
 resource "aws_kms_alias" "tfstate" {
@@ -135,28 +195,28 @@ resource "aws_kms_key" "tf_locks" {
     Statement = [
       # Admin du compte
       {
-        Sid: "AllowRoot",
-        Effect: "Allow",
-        Principal: { AWS: "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" },
-        Action: "kms:*",
-        Resource: "*"
+        Sid : "AllowRoot",
+        Effect : "Allow",
+        Principal : { AWS : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" },
+        Action : "kms:*",
+        Resource : "*"
       },
       # DynamoDB service peut utiliser la clé (contexte: ce compte + ce service)
       {
-        Sid: "AllowDynamoDBUseOfTheKey",
-        Effect: "Allow",
-        Principal: { Service: "dynamodb.amazonaws.com" },
-        Action: [
-          "kms:Encrypt","kms:Decrypt","kms:ReEncrypt*",
-          "kms:GenerateDataKey*","kms:DescribeKey"
+        Sid : "AllowDynamoDBUseOfTheKey",
+        Effect : "Allow",
+        Principal : { Service : "dynamodb.amazonaws.com" },
+        Action : [
+          "kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*",
+          "kms:GenerateDataKey*", "kms:DescribeKey"
         ],
-        Resource: "*",
-        Condition: {
-          StringEquals: {
-            "aws:SourceAccount": "${data.aws_caller_identity.current.account_id}"
+        Resource : "*",
+        Condition : {
+          StringEquals : {
+            "aws:SourceAccount" : "${data.aws_caller_identity.current.account_id}"
           },
-          StringLike: {
-            "kms:ViaService": "dynamodb.${var.aws_region}.amazonaws.com"
+          StringLike : {
+            "kms:ViaService" : "dynamodb.${var.aws_region}.amazonaws.com"
           }
         }
       }
@@ -182,7 +242,7 @@ resource "aws_dynamodb_table" "tf_locks" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
     kms_key_arn = aws_kms_key.tf_locks.arn
   }
   point_in_time_recovery {

@@ -78,15 +78,6 @@ resource "aws_security_group" "alb" {
     }
   }
 
-  # EGRESS : au lieu de 0.0.0.0/0, limite vers le SG des tasks (port app)
-  egress {
-    description    = "To ECS tasks only"
-    from_port      = 8000
-    to_port        = 8000
-    protocol       = "tcp"
-    security_groups = [aws_security_group.ecs_tasks.id]
-  }
-
   tags = local.tags
 }
 
@@ -98,16 +89,7 @@ resource "aws_security_group" "ecs_tasks" {
   description = "Allow app port from ALB"
   vpc_id      = local.effective_vpc_id
 
-  ingress {
-    description     = "App from ALB"
-    from_port       = 8000
-    to_port         = 8000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  # ... ton resource "aws_security_group" "ecs_tasks" {
-  # (ingress depuis l’ALB inchangé)
+  # Règles croisées gérées via aws_security_group_rule.* (voir plus bas)
 
   # DNS UDP
   egress {
@@ -125,15 +107,6 @@ resource "aws_security_group" "ecs_tasks" {
     to_port     = 53
     protocol    = "tcp"
     cidr_blocks = [data.aws_vpc.current.cidr_block]
-  }
-
-  # HTTPS uniquement vers les VPC endpoints
-  egress {
-    description    = "HTTPS to VPC endpoints"
-    from_port      = 443
-    to_port        = 443
-    protocol       = "tcp"
-    security_groups = [aws_security_group.vpce.id]
   }
 
   tags = local.tags
@@ -188,7 +161,7 @@ resource "aws_lb_listener" "http" {
   #checkov:skip=CKV_AWS_103: "Ensure that load balancer is using at least TLS 1.2 / Redirect default a refaire"
   load_balancer_arn = aws_lb.app.arn
   port              = 80
-  protocol          = "HTTP"  #tfsec:ignore:aws-elb-http-not-used exp:2025-10-31
+  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used exp:2025-10-31
 
   default_action {
     type             = var.acm_certificate_arn != "" ? "redirect" : "forward"
@@ -225,16 +198,47 @@ resource "aws_security_group" "vpce" {
   description = "Allow HTTPS from ECS tasks to VPC endpoints"
   vpc_id      = local.effective_vpc_id
 
-  # Le trafic sortant des tasks (443) vers les endpoints
-  ingress {
-    description     = "From ECS tasks to VPC endpoints (TLS)"
-    from_port      = 443
-    to_port        = 443
-    protocol       = "tcp"
-    security_groups = [aws_security_group.ecs_tasks.id]
-  }
-
   tags = local.tags
+}
+
+resource "aws_security_group_rule" "alb_to_ecs_tasks" {
+  description              = "To ECS tasks only"
+  type                     = "egress"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.alb.id
+  source_security_group_id = aws_security_group.ecs_tasks.id
+}
+
+resource "aws_security_group_rule" "ecs_tasks_from_alb" {
+  description              = "App from ALB"
+  type                     = "ingress"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_tasks.id
+  source_security_group_id = aws_security_group.alb.id
+}
+
+resource "aws_security_group_rule" "ecs_tasks_to_vpce" {
+  description              = "HTTPS to VPC endpoints"
+  type                     = "egress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_tasks.id
+  source_security_group_id = aws_security_group.vpce.id
+}
+
+resource "aws_security_group_rule" "vpce_from_ecs_tasks" {
+  description              = "From ECS tasks to VPC endpoints (TLS)"
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.vpce.id
+  source_security_group_id = aws_security_group.ecs_tasks.id
 }
 
 locals {
@@ -254,7 +258,7 @@ resource "aws_vpc_endpoint" "interfaces" {
   vpc_id              = local.effective_vpc_id
   service_name        = each.value
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = local.private_subnets          # endpoints dans les subnets privés
+  subnet_ids          = local.private_subnets # endpoints dans les subnets privés
   security_group_ids  = [aws_security_group.vpce.id]
   private_dns_enabled = true
   tags                = local.tags
