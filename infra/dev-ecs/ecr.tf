@@ -41,11 +41,38 @@ data "aws_iam_policy_document" "kms_ecr" {
 
     principals {
       type        = "AWS"
-      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+      identifiers = [local.kms_account_root]
     }
 
-    actions   = ["kms:*"]
-    resources = ["*"]
+    actions = [
+      "kms:CancelKeyDeletion",
+      "kms:CreateAlias",
+      "kms:DeleteAlias",
+      "kms:DescribeKey",
+      "kms:DisableKey",
+      "kms:DisableKeyRotation",
+      "kms:EnableKey",
+      "kms:EnableKeyRotation",
+      "kms:GetKeyPolicy",
+      "kms:GetKeyRotationStatus",
+      "kms:ListAliases",
+      "kms:ListGrants",
+      "kms:ListKeyPolicies",
+      "kms:ListResourceTags",
+      "kms:PutKeyPolicy",
+      "kms:ScheduleKeyDeletion",
+      "kms:TagResource",
+      "kms:UntagResource",
+      "kms:UpdateAlias"
+    ]
+
+    resources = [local.kms_key_arn_wildcard]
+
+    condition {
+      test     = "ForAnyValue:StringLike"
+      variable = "kms:ResourceAliases"
+      values   = [local.kms_ecr_alias_name]
+    }
   }
 
   statement {
@@ -66,7 +93,7 @@ data "aws_iam_policy_document" "kms_ecr" {
       "kms:ReEncrypt*"
     ]
 
-    resources = ["*"]
+    resources = [local.kms_key_arn_wildcard]
 
     condition {
       test     = "StringEquals"
@@ -79,6 +106,12 @@ data "aws_iam_policy_document" "kms_ecr" {
       variable = "kms:ViaService"
       values   = [format("ecr.%s.%s", var.aws_region, data.aws_partition.current.dns_suffix)]
     }
+
+    condition {
+      test     = "ForAnyValue:StringLike"
+      variable = "kms:ResourceAliases"
+      values   = [local.kms_ecr_alias_name]
+    }
   }
 }
 
@@ -90,6 +123,6 @@ resource "aws_kms_key" "ecr" {
 }
 
 resource "aws_kms_alias" "ecr" {
-  name          = "alias/${local.name}-ecr"
+  name          = local.kms_ecr_alias_name
   target_key_id = aws_kms_key.ecr.key_id
 }

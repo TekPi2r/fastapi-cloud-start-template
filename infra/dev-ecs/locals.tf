@@ -13,4 +13,9 @@ locals {
     ManagedBy   = "Terraform"
     Environment = var.environment # ==> "dev"
   }
+
+  kms_account_root        = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"
+  kms_key_arn_wildcard    = "arn:${data.aws_partition.current.partition}:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"
+  kms_ecr_alias_name      = "alias/${local.name}-ecr"
+  kms_alb_logs_alias_name = "alias/${local.name}-alb-logs"
 }
