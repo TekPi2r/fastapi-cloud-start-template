@@ -2,7 +2,7 @@ resource "aws_kms_key" "logs" {
   description         = "KMS key for CloudWatch logs"
   enable_key_rotation = true
 
-  policy      = <<POLICY
+  policy = <<POLICY
   {
     "Version": "2025-08-26",
     "Id": "default",
@@ -19,7 +19,7 @@ resource "aws_kms_key" "logs" {
   }
 POLICY
 
-  tags                = local.tags
+  tags = local.tags
 }
 
 resource "aws_kms_alias" "logs" {

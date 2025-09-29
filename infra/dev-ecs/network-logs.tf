@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     effect  = "Deny"
     actions = ["s3:*"]
     principals {
-      type = "*"
+      type        = "*"
       identifiers = ["*"]
     }
     resources = [
@@ -57,9 +57,9 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
       "${aws_s3_bucket.alb_logs.arn}/*"
     ]
     condition {
-      test = "Bool"
+      test     = "Bool"
       variable = "aws:SecureTransport"
-      values = ["false"]
+      values   = ["false"]
     }
   }
 }
