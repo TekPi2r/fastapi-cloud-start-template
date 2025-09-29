@@ -3,10 +3,10 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  account_id  = data.aws_caller_identity.current.account_id
-  environment   = var.environment
-  name          = "${var.name_prefix}-${local.environment}"   # fastapi-dev
-  ecr_repo_name = "${local.name}-ecr"                         # fastapi-dev-ecr
+  account_id     = data.aws_caller_identity.current.account_id
+  environment    = var.environment
+  name           = "${var.name_prefix}-${local.environment}" # fastapi-dev
+  ecr_repo_name  = "${local.name}-ecr"                       # fastapi-dev-ecr
   log_group_name = "/${var.name_prefix}/${var.environment}"
 
   # e.g. ["repo:TekPi2r/fastapi-cloud-start-template:ref:refs/heads/main"]
@@ -20,16 +20,16 @@ locals {
   # If you later add a *task runtime* role, prefer naming: "${var.name_prefix}-${local.environment}-ecs-task"
   ecs_task_runtime_role_arn = "arn:aws:iam::${local.account_id}:role/${local.name}-ecs-task"
 
-  tf_state_bucket_arn  = "arn:aws:s3:::${var.tf_state_bucket}"
+  tf_state_bucket_arn = "arn:aws:s3:::${var.tf_state_bucket}"
   # state file lives under the dev-ecs prefix
   tf_state_objects_arn = "arn:aws:s3:::${var.tf_state_bucket}/dev-ecs/*"
   tf_lock_table_arn    = "arn:aws:dynamodb:${var.aws_region}:${local.account_id}:table/${var.tf_lock_table}"
 
 
   tags = {
-    Name        = var.name_prefix       # <- always "fastapi"
+    Name        = var.name_prefix # <- always "fastapi"
     ManagedBy   = "Terraform"
-    Environment = local.environment     # "dev"
+    Environment = local.environment # "dev"
   }
 }
 
@@ -68,7 +68,7 @@ data "aws_iam_policy_document" "oidc_trust" {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = concat(
-        tolist(local.github_subs),  # <- flatten/normalize the tuple
+        tolist(local.github_subs), # <- flatten/normalize the tuple
         ["repo:${var.github_owner}/${var.github_repo}:environment:${var.environment}"]
       )
     }
@@ -83,8 +83,8 @@ data "aws_iam_policy_document" "oidc_trust" {
 data "aws_iam_policy_document" "build_min" {
   # ECR auth -> seule action globale permise nécessaire
   statement {
-    sid     = "EcrAuth"
-    effect  = "Allow"
+    sid    = "EcrAuth"
+    effect = "Allow"
     actions = [
       "ecr:GetAuthorizationToken",
     ]
@@ -93,8 +93,8 @@ data "aws_iam_policy_document" "build_min" {
 
   # Push sur TON repo uniquement
   statement {
-    sid     = "EcrPushScoped"
-    effect  = "Allow"
+    sid    = "EcrPushScoped"
+    effect = "Allow"
     actions = [
       "ecr:BatchCheckLayerAvailability",
       "ecr:CompleteLayerUpload",
@@ -142,6 +142,10 @@ data "aws_kms_alias" "tfstate" {
   name = "alias/${var.name_prefix}-tfstate"
 }
 
+data "aws_kms_alias" "tf_locks" {
+  name = "alias/${var.name_prefix}-tf-locks"
+}
+
 # Least-privilege policy for Deploy pipeline: register task def + update service
 data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wildcards exp:2025-08-27
   #checkov:skip=CKV_AWS_111: "Ensure IAM policies does not allow write access without constraints"
@@ -149,14 +153,16 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Déploiement infra multi-services: wildcard temporaire, TODO affiner par ARN (ECS, ALB, Logs, ECR, AppAutoScaling).
   # KMS pour lire/écrire le state S3 (backend Terraform)
   statement {
-    sid     = "KmsUseTfStateKey"
-    effect  = "Allow"
+    sid    = "KmsUseTfStateKey"
+    effect = "Allow"
     actions = [
-      "kms:Encrypt",
+      "kms:CreateGrant",
       "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
       "kms:GenerateDataKey",
       "kms:GenerateDataKeyWithoutPlaintext",
-      "kms:DescribeKey"
+      "kms:ReEncrypt*"
     ]
     # La data source expose l'ID de clé (UUID). On construit l’ARN proprement :
     resources = [
@@ -164,10 +170,27 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
     ]
   }
 
+  statement {
+    sid    = "KmsUseTfLocksKey"
+    effect = "Allow"
+    actions = [
+      "kms:CreateGrant",
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+      "kms:GenerateDataKeyWithoutPlaintext",
+      "kms:ReEncrypt*"
+    ]
+    resources = [
+      "arn:aws:kms:${var.aws_region}:${local.account_id}:key/${data.aws_kms_alias.tf_locks.target_key_id}"
+    ]
+  }
+
   # ECS read + mutate only what we need
   statement {
-    sid     = "EcsCore"
-    effect  = "Allow"
+    sid    = "EcsCore"
+    effect = "Allow"
     actions = [
       # Describe/List strictement nécessaires au plan/apply
       "ecs:DescribeClusters",
@@ -203,8 +226,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # ECR read of our repo (to resolve image digest during deployment if needed)
   statement {
-    sid     = "EcrReadRepo"
-    effect  = "Allow"
+    sid    = "EcrReadRepo"
+    effect = "Allow"
     actions = [
       "ecr:BatchGetImage",
       "ecr:DescribeImages",
@@ -215,8 +238,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # S3 backend: bucket-level ops
   statement {
-    sid     = "S3TfStateBucket"
-    effect  = "Allow"
+    sid    = "S3TfStateBucket"
+    effect = "Allow"
     actions = [
       "s3:ListBucket",
       "s3:GetBucketLocation"
@@ -226,8 +249,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # S3 backend: object-level ops on the dev-ecs prefix
   statement {
-    sid     = "S3TfStateObjectRW"
-    effect  = "Allow"
+    sid    = "S3TfStateObjectRW"
+    effect = "Allow"
     actions = [
       "s3:GetObject",
       "s3:GetObjectVersion",
@@ -239,8 +262,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # DynamoDB state lock table
   statement {
-    sid     = "DdbTfLockRW"
-    effect  = "Allow"
+    sid    = "DdbTfLockRW"
+    effect = "Allow"
     actions = [
       "dynamodb:DescribeTable",
       "dynamodb:GetItem",
@@ -255,8 +278,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # EC2 describe pour data.aws_vpc / data.aws_subnets / SG
   statement {
-    sid     = "Ec2ReadDescribe"
-    effect  = "Allow"
+    sid    = "Ec2ReadDescribe"
+    effect = "Allow"
     actions = [
       "ec2:DescribeVpcs",
       "ec2:DescribeSubnets",
@@ -269,8 +292,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # ALB/Target Groups describe pour rafraîchir aws_lb / aws_lb_target_group / listener
   statement {
-    sid     = "ElbReadDescribe"
-    effect  = "Allow"
+    sid    = "ElbReadDescribe"
+    effect = "Allow"
     actions = [
       "elasticloadbalancing:DescribeLoadBalancers",
       "elasticloadbalancing:DescribeListeners",
@@ -286,17 +309,17 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # CloudWatch Logs pour aws_cloudwatch_log_group
   statement {
-    sid     = "LogsReadDescribe"
-    effect  = "Allow"
-    actions = ["logs:DescribeLogGroups"]
+    sid       = "LogsReadDescribe"
+    effect    = "Allow"
+    actions   = ["logs:DescribeLogGroups"]
     resources = ["*"]
   }
 
   # ECR describe du repo (le plan lit le repo existant)
   statement {
-    sid     = "EcrRepoRead"
-    effect  = "Allow"
-    actions = ["ecr:DescribeRepositories"]
+    sid       = "EcrRepoRead"
+    effect    = "Allow"
+    actions   = ["ecr:DescribeRepositories"]
     resources = ["*"]
   }
 
@@ -313,8 +336,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # IAM: lire les inline/attached policies des rôles ECS
   statement {
-    sid     = "IamListRolePolicies"
-    effect  = "Allow"
+    sid    = "IamListRolePolicies"
+    effect = "Allow"
     actions = [
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
@@ -328,8 +351,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # IAM: lire les policies AWS gérées renvoyées par ListAttachedRolePolicies
   statement {
-    sid     = "IamReadAwsManagedPolicies"
-    effect  = "Allow"
+    sid    = "IamReadAwsManagedPolicies"
+    effect = "Allow"
     actions = [
       "iam:GetPolicy",
       "iam:GetPolicyVersion",
@@ -340,16 +363,16 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # CloudWatch Logs: lecture des tags du log group
   statement {
-    sid     = "LogsListTagsForResource"
-    effect  = "Allow"
-    actions = ["logs:ListTagsForResource"]
+    sid       = "LogsListTagsForResource"
+    effect    = "Allow"
+    actions   = ["logs:ListTagsForResource"]
     resources = [local.log_group_arn]
   }
 
   # EC2: attributs VPC + (optionnel) AZ/account attrs
   statement {
-    sid     = "Ec2ReadVpcAttrs"
-    effect  = "Allow"
+    sid    = "Ec2ReadVpcAttrs"
+    effect = "Allow"
     actions = [
       "ec2:DescribeVpcAttribute",
       "ec2:DescribeAccountAttributes",
@@ -360,32 +383,32 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # ECR: lecture des tags du repo
   statement {
-    sid     = "EcrListTagsForResource"
-    effect  = "Allow"
-    actions = ["ecr:ListTagsForResource"]
+    sid       = "EcrListTagsForResource"
+    effect    = "Allow"
+    actions   = ["ecr:ListTagsForResource"]
     resources = [local.ecr_repo_arn]
   }
 
   # ELBv2: lecture des ATTRIBUTES du LB
   statement {
-    sid     = "ElbReadAttributesLb"
-    effect  = "Allow"
-    actions = ["elasticloadbalancing:DescribeLoadBalancerAttributes"]
+    sid       = "ElbReadAttributesLb"
+    effect    = "Allow"
+    actions   = ["elasticloadbalancing:DescribeLoadBalancerAttributes"]
     resources = ["*"] # les ARNs exacts varient, on reste en read-only global
   }
 
   # ELBv2: lecture des ATTRIBUTES du Target Group
   statement {
-    sid     = "ElbReadAttributesTg"
-    effect  = "Allow"
-    actions = ["elasticloadbalancing:DescribeTargetGroupAttributes"]
+    sid       = "ElbReadAttributesTg"
+    effect    = "Allow"
+    actions   = ["elasticloadbalancing:DescribeTargetGroupAttributes"]
     resources = ["*"]
   }
 
   # ECR: lecture de la lifecycle policy du repo (utilisé par aws_ecr_lifecycle_policy)
   statement {
-    sid     = "EcrLifecycleRead"
-    effect  = "Allow"
+    sid    = "EcrLifecycleRead"
+    effect = "Allow"
     actions = [
       "ecr:GetLifecyclePolicy",
       "ecr:GetLifecyclePolicyPreview"
@@ -395,16 +418,16 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # ELBv2: lecture des attributs du listener
   statement {
-    sid     = "ElbReadListenerAttributes"
-    effect  = "Allow"
-    actions = ["elasticloadbalancing:DescribeListenerAttributes"]
+    sid       = "ElbReadListenerAttributes"
+    effect    = "Allow"
+    actions   = ["elasticloadbalancing:DescribeListenerAttributes"]
     resources = ["*"]
   }
 
   # ECS: tagging des resources (task definition, service…)
   statement {
-    sid     = "EcsTagging"
-    effect  = "Allow"
+    sid    = "EcsTagging"
+    effect = "Allow"
     actions = [
       "ecs:TagResource",
       "ecs:UntagResource",
@@ -417,8 +440,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # Application Auto Scaling for ECS service
   statement {
-    sid     = "AppAutoScalingEcs"
-    effect  = "Allow"
+    sid    = "AppAutoScalingEcs"
+    effect = "Allow"
     actions = [
       "application-autoscaling:RegisterScalableTarget",
       "application-autoscaling:DeregisterScalableTarget",
@@ -433,14 +456,14 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # Allow creation of the service-linked role for App Auto Scaling (first time)
   statement {
-    sid     = "IamCreateServiceLinkedRoleForAppAS"
-    effect  = "Allow"
-    actions = ["iam:CreateServiceLinkedRole"]
+    sid       = "IamCreateServiceLinkedRoleForAppAS"
+    effect    = "Allow"
+    actions   = ["iam:CreateServiceLinkedRole"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
-      values   = ["ecs.amazonaws.com","application-autoscaling.amazonaws.com","elasticloadbalancing.amazonaws.com"]
+      values   = ["ecs.amazonaws.com", "application-autoscaling.amazonaws.com", "elasticloadbalancing.amazonaws.com"]
     }
   }
 
@@ -448,8 +471,8 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
   # Justification: API Describe/List sans support ARN; pas de scoping possible.
   # CloudWatch alarms management
   statement {
-    sid     = "CloudWatchAlarmsManage"
-    effect  = "Allow"
+    sid    = "CloudWatchAlarmsManage"
+    effect = "Allow"
     actions = [
       "cloudwatch:PutMetricAlarm",
       "cloudwatch:DeleteAlarms",
@@ -462,11 +485,11 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # CloudWatch Alarms: tags are read during plan and set during apply
   statement {
-    sid     = "CloudWatchAlarmsTagging"
-    effect  = "Allow"
+    sid    = "CloudWatchAlarmsTagging"
+    effect = "Allow"
     actions = [
-      "cloudwatch:ListTagsForResource",  # needed at plan time
-      "cloudwatch:TagResource",          # needed at apply time (you tag alarms)
+      "cloudwatch:ListTagsForResource", # needed at plan time
+      "cloudwatch:TagResource",         # needed at apply time (you tag alarms)
       "cloudwatch:UntagResource"
     ]
     resources = [
@@ -486,9 +509,9 @@ data "aws_iam_policy_document" "deploy_min" { #tfsec:ignore:aws-iam-no-policy-wi
 
   # (Optional but safe) App Auto Scaling tag reads — some provider versions call this
   statement {
-    sid     = "AppAutoScalingListTags"
-    effect  = "Allow"
-    actions = ["application-autoscaling:ListTagsForResource"]
+    sid       = "AppAutoScalingListTags"
+    effect    = "Allow"
+    actions   = ["application-autoscaling:ListTagsForResource"]
     resources = ["*"]
   }
 }
