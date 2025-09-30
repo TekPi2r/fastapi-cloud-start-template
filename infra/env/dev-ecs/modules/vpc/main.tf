@@ -39,6 +39,7 @@ locals {
   )
 }
 
+#checkov:skip=CKV2_AWS_5: Security group attached to ALB resource in same module
 resource "aws_security_group" "alb" {
   name        = "${var.name}-alb-sg"
   description = "Allow HTTP/HTTPS ingress"
@@ -66,6 +67,7 @@ resource "aws_security_group" "alb" {
   tags = var.tags
 }
 
+#checkov:skip=CKV2_AWS_5: Security group attached to ECS service network interfaces
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.name}-ecs-sg"
   description = "Allow traffic from ALB"
@@ -149,11 +151,11 @@ locals {
 }
 
 resource "aws_vpc_endpoint" "interfaces" {
-  for_each            = toset(locals.vpce_services)
+  for_each            = toset(local.vpce_services)
   vpc_id              = local.effective_vpc_id
   service_name        = each.value
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = locals.private_subnets
+  subnet_ids          = local.private_subnets
   security_group_ids  = [aws_security_group.vpce.id]
   private_dns_enabled = true
   tags                = var.tags

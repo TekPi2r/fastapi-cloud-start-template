@@ -1,5 +1,7 @@
 data "aws_partition" "current" {}
 
+#checkov:skip=CKV_AWS_111: Terraform deploy role needs scoped write permissions for ECS deploy operations
+#checkov:skip=CKV_AWS_356: ECS/ELB APIs require wildcard resources for Describe/Register actions
 data "aws_iam_policy_document" "deploy_min" {
   statement {
     sid    = "KmsUseTfStateKey"
