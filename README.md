@@ -44,8 +44,8 @@ A modern, production‑minded **FastAPI** template with a clean path to AWS:
 ├── Dockerfile                   # container image
 ├── infra/                       # Terraform (S3/Dynamo backend, OIDC, ECS/ECR/ALB)
 │   ├── bootstrap-create/        # S3 state bucket + DynamoDB locks (one‑time)
-│   ├── bootstrap-foundation/    # GitHub OIDC + IAM roles (build/deploy)
-│   └── dev-ecs/                 # ECR, ECS service, ALB, logs, SGs (+ run.sh)
+│   ├── bootstrap-foundation/    # GitHub OIDC + IAM roles (build/deploy) + dev ECR
+│   └── dev-ecs/                 # ECS service, ALB, logs, SGs (+ run.sh)
 └── .github/workflows/
     ├── app-ci.yml               # build & push to ECR
     └── app-deploy-dev.yml       # plan/apply dev-ecs
@@ -65,7 +65,14 @@ A modern, production‑minded **FastAPI** template with a clean path to AWS:
 
 ## 🚀 Quick start
 
-### 1) One‑time AWS bootstrap (local)
+### Runbook local (ordre recommandé)
+1. `infra/bootstrap-create` – backend Terraform (S3/Dynamo/KMS).
+2. `infra/bootstrap-foundation` – GitHub OIDC, IAM build/deploy, création du repo ECR dev.
+3. `.github/workflows/app-ci.yml` – build & push vers ECR (`Check ECR exists` vérifie la présence du repo avant le build).
+4. `infra/dev-ecs` – VPC, ECS service, ALB, logs, SGs.
+5. `.github/workflows/app-deploy-dev.yml` – plan/apply Terraform (dev-ecs) via pipeline.
+
+### 1) One-time AWS bootstrap (local)
 ```bash
 # infra/bootstrap-create — remote TF state
 export AWS_PROFILE=bootstrap
@@ -95,7 +102,7 @@ Set **environment variables** (non‑secret):
 (Optionally require reviewers / wait timer ⏳.)
 
 ### 3) Build & push image (CI)
-- Push to `main` → **`app-ci`** runs and pushes:
+- Push to `main` → **`app-ci`** runs (`Check ECR exists` stoppe la job si le repo n’est pas encore provisionné) et pousse :
   ```
   <account>.dkr.ecr.<region>.amazonaws.com/fastapi-dev-ecr:{short-sha}
   and :latest-dev
