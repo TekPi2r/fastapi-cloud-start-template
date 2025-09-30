@@ -5,7 +5,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-latest-green.svg)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-local--dev-blueviolet.svg)
 
 A modern, production‑minded **FastAPI** template with a clean path to AWS:
 
