@@ -142,6 +142,17 @@ data "aws_iam_policy_document" "build_min" {
     ]
     resources = [local.ecr_repo_arn]
   }
+
+  # + Lecture ECR minimale pour buildx (cache/manifest)
+  statement {
+    sid    = "EcrReadScoped"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+    ]
+    resources = [local.ecr_repo_arn]
+  }
 }
 
 resource "aws_iam_policy" "fastapi_build_min" {
