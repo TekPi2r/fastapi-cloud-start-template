@@ -26,7 +26,7 @@ locals {
   ecs_task_runtime_role_arn = "arn:aws:iam::${local.account_id}:role/${local.name}-ecs-task"
 
   tf_state_bucket_arn  = "arn:aws:s3:::${var.tf_state_bucket}"
-  tf_state_objects_arn = "arn:aws:s3:::${var.tf_state_bucket}/env/dev-ecs/*"
+  tf_state_objects_arn = "arn:aws:s3:::${var.tf_state_bucket}/dev-ecs/*"
   tf_lock_table_arn    = "arn:aws:dynamodb:${var.aws_region}:${local.account_id}:table/${var.tf_lock_table}"
 
   log_group_arn                = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:${local.log_group_name}"

@@ -54,7 +54,7 @@ preflight() {
 init_backend() {
   terraform init \
     -backend-config="bucket=${TF_BACKEND_BUCKET}" \
-    -backend-config="key=env/dev-ecs/terraform.tfstate" \
+    -backend-config="key=dev-ecs/terraform.tfstate" \
     -backend-config="region=${AWS_REGION}" \
     -backend-config="dynamodb_table=${TF_BACKEND_DYNAMO_TABLE}" \
     -backend-config="encrypt=true"
