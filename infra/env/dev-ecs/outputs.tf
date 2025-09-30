@@ -4,17 +4,17 @@ output "ecr_repo_url" {
 }
 
 output "cluster_name" {
-  value       = aws_ecs_cluster.this.name
+  value       = module.ecs.cluster_name
   description = "ECS cluster name"
 }
 
 output "service_name" {
-  value       = aws_ecs_service.api.name
+  value       = module.ecs.service_name
   description = "ECS service name"
 }
 
 output "alb_dns_name" {
-  value       = aws_lb.app.dns_name
+  value       = module.alb.lb_dns_name
   description = "ALB public DNS"
 }
 

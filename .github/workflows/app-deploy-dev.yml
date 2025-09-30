@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'infra/dev-ecs/**'
+      - 'infra/env/dev-ecs/**'
       - 'Dockerfile'
       - 'app/**'
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
           echo "image_tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Terraform plan
-        working-directory: infra/dev-ecs
+        working-directory: infra/env/dev-ecs
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
         run: |
@@ -94,7 +94,7 @@ jobs:
           echo "image_tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Terraform apply
-        working-directory: infra/dev-ecs
+        working-directory: infra/env/dev-ecs
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
         run: |
@@ -102,14 +102,14 @@ jobs:
           ./run.sh apply
 
       - name: Wait for ECS service to be stable
-        working-directory: infra/dev-ecs
+        working-directory: infra/env/dev-ecs
         run: |
           CLUSTER=$(terraform output -raw cluster_name)
           SERVICE=$(terraform output -raw service_name)
           aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
 
       - name: Smoke check via ALB
-        working-directory: infra/dev-ecs
+        working-directory: infra/env/dev-ecs
         run: |
           ALB=$(terraform output -raw alb_dns_name)
           echo "ALB: http://$ALB/"
@@ -126,5 +126,5 @@ jobs:
           exit 1
 
       - name: Show ALB URL
-        working-directory: infra/dev-ecs
+        working-directory: infra/env/dev-ecs
         run: ./run.sh url || true

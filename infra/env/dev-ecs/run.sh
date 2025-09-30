@@ -48,13 +48,13 @@ preflight() {
   [[ -n "$TF_BACKEND_BUCKET" ]] || { echo "TF_BACKEND_BUCKET required"; exit 1; }
   [[ -n "$TF_BACKEND_DYNAMO_TABLE" ]] || { echo "TF_BACKEND_DYNAMO_TABLE required"; exit 1; }
   aws sts get-caller-identity >/dev/null
-  echo "AWS_REGION=$AWS_REGION TF_BACKEND_BUCKET=$TF_BACKEND_BUCKET TF_BACKEND_DYNAMO_TABLE=$TF_BACKEND_DYNAMO_TABLE"
+  echo "AWS_PROFILE=${AWS_PROFILE:-default} AWS_REGION=$AWS_REGION TF_BACKEND_BUCKET=$TF_BACKEND_BUCKET TF_BACKEND_DYNAMO_TABLE=$TF_BACKEND_DYNAMO_TABLE"
 }
 
 init_backend() {
   terraform init \
     -backend-config="bucket=${TF_BACKEND_BUCKET}" \
-    -backend-config="key=dev-ecs/terraform.tfstate" \
+    -backend-config="key=env/dev-ecs/terraform.tfstate" \
     -backend-config="region=${AWS_REGION}" \
     -backend-config="dynamodb_table=${TF_BACKEND_DYNAMO_TABLE}" \
     -backend-config="encrypt=true"
@@ -88,7 +88,7 @@ plan_cmd() {
   terraform validate
   # shellcheck disable=SC2046
   set +e
-  terraform plan -input=false -no-color -detailed-exitcode $(tf_vars)
+  terraform plan -input=false -no-color -detailed-exitcode -lock-timeout=10m $(tf_vars)
   ec=$?
   set -e
 
@@ -105,12 +105,12 @@ plan_cmd() {
 
 apply_cmd() {
   # shellcheck disable=SC2046
-  terraform apply -input=false -auto-approve $(tf_vars)
+  terraform apply -input=false -auto-approve -lock-timeout=10m $(tf_vars)
 }
 
 destroy_cmd() {
   # shellcheck disable=SC2046
-  terraform destroy -auto-approve $(tf_vars)
+  terraform destroy -auto-approve -lock-timeout=10m $(tf_vars)
 }
 
 outputs_cmd() { terraform output || true; }

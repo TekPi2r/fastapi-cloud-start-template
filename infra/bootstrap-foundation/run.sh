@@ -112,6 +112,7 @@ plan_cmd() {
   TRUSTED_HCL="$(to_hcl_list "${TRUSTED_ROLE_ARNS:-}")"
 
   terraform plan \
+    -lock-timeout=10m \
     -var "aws_region=${AWS_REGION_VAR}" \
     -var "name_prefix=${NAME_PREFIX}" \
     -var "environment=${ENVIRONMENT}" \
@@ -127,7 +128,7 @@ apply_cmd() {
   local TRUSTED_HCL
   TRUSTED_HCL="$(to_hcl_list "${TRUSTED_ROLE_ARNS:-}")"
 
-  terraform apply -auto-approve \
+  terraform apply -auto-approve -lock-timeout=10m \
     -var "aws_region=${AWS_REGION_VAR}" \
     -var "name_prefix=${NAME_PREFIX}" \
     -var "environment=${ENVIRONMENT}" \
@@ -143,7 +144,7 @@ destroy_cmd() {
   local TRUSTED_HCL
   TRUSTED_HCL="$(to_hcl_list "${TRUSTED_ROLE_ARNS:-}")"
 
-  terraform destroy -auto-approve \
+  terraform destroy -auto-approve -lock-timeout=10m \
     -var "aws_region=${AWS_REGION_VAR}" \
     -var "name_prefix=${NAME_PREFIX}" \
     -var "environment=${ENVIRONMENT}" \

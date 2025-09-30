@@ -1,4 +1,11 @@
-# ALB 5xx spikes
+resource "aws_cloudwatch_log_group" "api" {
+  name              = local.log_group_name
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.logs.arn
+  tags              = local.tags
+}
+
+# CloudWatch alarms
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   alarm_name          = "${local.name}-alb-5xx"
   namespace           = "AWS/ApplicationELB"
@@ -9,13 +16,12 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
   dimensions = {
-    LoadBalancer = aws_lb.app.arn_suffix
+    LoadBalancer = module.alb.lb_arn_suffix
   }
   treat_missing_data = "notBreaching"
   tags               = local.tags
 }
 
-# Any unhealthy targets
 resource "aws_cloudwatch_metric_alarm" "tg_unhealthy" {
   alarm_name          = "${local.name}-tg-unhealthy"
   namespace           = "AWS/ApplicationELB"
@@ -26,8 +32,8 @@ resource "aws_cloudwatch_metric_alarm" "tg_unhealthy" {
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
   dimensions = {
-    TargetGroup  = aws_lb_target_group.app.arn_suffix
-    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = module.alb.target_group_arn_suffix
+    LoadBalancer = module.alb.lb_arn_suffix
   }
   treat_missing_data = "notBreaching"
   tags               = local.tags
@@ -43,8 +49,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   statistic           = "Average"
   threshold           = 80
   dimensions = {
-    ClusterName = aws_ecs_cluster.this.name
-    ServiceName = aws_ecs_service.api.name
+    ClusterName = module.ecs.cluster_name
+    ServiceName = module.ecs.service_name
   }
   treat_missing_data = "notBreaching"
   tags               = local.tags
@@ -60,8 +66,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_mem_high" {
   statistic           = "Average"
   threshold           = 80
   dimensions = {
-    ClusterName = aws_ecs_cluster.this.name
-    ServiceName = aws_ecs_service.api.name
+    ClusterName = module.ecs.cluster_name
+    ServiceName = module.ecs.service_name
   }
   treat_missing_data = "notBreaching"
   tags               = local.tags

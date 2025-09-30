@@ -147,14 +147,14 @@ export TF_BACKEND_DYNAMO_TABLE=<from bootstrap>
 - **GitHub OIDC** trust to assume AWS roles (no static keys in GitHub).  
 - Roles:
   - `fastapi-dev-build` → minimal **ECR push** scope to `fastapi-dev-ecr`.
-  - `fastapi-dev-deploy` → **Terraform plan/apply** for `infra/dev-ecs` + `iam:PassRole` locked to ECS task roles.
+  - `fastapi-dev-deploy` → **Terraform plan/apply** for `infra/env/dev-ecs` + `iam:PassRole` locked to ECS task roles.
 - Extra read‑only permissions added for safe Terraform refresh (ELB/EC2/Logs/ECR describes) and TF backend (S3/Dynamo).
 
 ### 🧪/🚀 CI/CD
 - **.github/workflows/app-ci.yml** → build & push Docker image to ECR on PR/push to `main` 🐳.
   - Tags: short SHA + `latest-dev`.
   - Uses `AWS_ROLE_BUILD_ARN` (environment: `dev`).
-- **.github/workflows/app-deploy-dev.yml** → Terraform **plan & apply** of `infra/dev-ecs` ⚙️.
+- **.github/workflows/app-deploy-dev.yml** → Terraform **plan & apply** of `infra/env/dev-ecs` ⚙️.
   - Approvals via GitHub **Environment** `dev`.
   - Treats Terraform plan **exit code 2** (“changes”) as expected.
   - Uses `AWS_ROLE_DEPLOY_ARN` (environment: `dev`).
@@ -174,7 +174,7 @@ export TF_BACKEND_DYNAMO_TABLE=<from bootstrap>
 2. Run `infra/bootstrap-foundation` to create OIDC + CI roles; copy role ARNs to GitHub Environment `dev`:
    - `AWS_ROLE_BUILD_ARN` / `AWS_ROLE_DEPLOY_ARN`
 3. Ensure `dev` env vars are set: `AWS_REGION`, `NAME_PREFIX`, `ENVIRONMENT`, `TF_BACKEND_BUCKET`, `TF_BACKEND_DYNAMO_TABLE`.
-4. Optional first apply of `infra/dev-ecs` locally; afterward, use **app-ci** (build) then **app-deploy-dev** (apply).
+4. Optional first apply of `infra/env/dev-ecs` locally; afterward, use **app-ci** (build) then **app-deploy-dev** (apply).
 
 ### 🔗 Docs
 - Infra README: `infra/README.md` (fresh, emoji‑friendly, step‑by‑step).  

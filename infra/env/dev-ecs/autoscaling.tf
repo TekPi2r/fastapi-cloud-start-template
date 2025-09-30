@@ -1,7 +1,7 @@
 resource "aws_appautoscaling_target" "svc" {
   max_capacity       = var.max_capacity
   min_capacity       = var.min_capacity
-  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.api.name}"
+  resource_id        = "service/${module.ecs.cluster_name}/${module.ecs.service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
@@ -26,7 +26,7 @@ resource "aws_appautoscaling_policy" "cpu_target" {
 resource "aws_appautoscaling_policy" "mem_target" {
   name               = "memory-70"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.api.name}"
+  resource_id        = "service/${module.ecs.cluster_name}/${module.ecs.service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 
