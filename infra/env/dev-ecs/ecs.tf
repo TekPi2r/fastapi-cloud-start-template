@@ -25,6 +25,6 @@ module "ecs" {
     }
   ]
   container_name         = "api"
-  container_port         = 8000
+  container_port         = var.container_port
   enable_execute_command = true
 }

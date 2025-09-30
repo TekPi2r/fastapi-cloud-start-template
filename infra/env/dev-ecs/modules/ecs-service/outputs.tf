@@ -13,9 +13,9 @@ output "service_name" {
   value       = aws_ecs_service.this.name
 }
 
-output "service_arn" {
-  description = "ARN of the ECS service"
-  value       = aws_ecs_service.this.arn
+output "service_id" {
+  description = "Identifier of the ECS service (cluster/name)"
+  value       = aws_ecs_service.this.id
 }
 
 output "task_definition_arn" {
