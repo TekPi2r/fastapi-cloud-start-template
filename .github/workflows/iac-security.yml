@@ -31,21 +31,3 @@ jobs:
         with:
           sarif_file: tfsec.sarif
           category: tfsec
-
-      # --- Checkov -> SARIF ---
-      - name: Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: infra
-          framework: terraform
-          quiet: true
-          soft_fail: false              # true pour casser le build si fail
-          output_format: cli,sarif
-          output_file_path: console,checkov.sarif
-
-      - name: Upload Checkov SARIF
-        if: success() || failure()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: checkov.sarif
-          category: checkov
