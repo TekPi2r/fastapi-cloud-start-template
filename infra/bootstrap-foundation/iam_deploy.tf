@@ -34,4 +34,6 @@ module "iam_deploy" {
 
   log_group_arn                = local.log_group_arn
   cloudwatch_alarm_arn_pattern = local.cloudwatch_alarm_arn_pattern
+  alb_log_bucket_arn           = local.alb_logs_bucket_arn
+  alb_log_bucket_objects_arn   = local.alb_logs_bucket_objects_arn
 }

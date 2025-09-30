@@ -8,7 +8,12 @@ output "role_arn" {
   description = "ARN of the IAM role created for deployments"
 }
 
-output "policy_arn" {
-  value       = aws_iam_policy.this.arn
-  description = "ARN of the least privilege IAM policy attached to the deploy role"
+output "core_policy_arn" {
+  value       = aws_iam_policy.core.arn
+  description = "ARN of the read/back-end policy attached to the deploy role"
+}
+
+output "manage_policy_arn" {
+  value       = aws_iam_policy.manage.arn
+  description = "ARN of the mutable permissions policy attached to the deploy role"
 }

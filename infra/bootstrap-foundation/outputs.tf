@@ -19,8 +19,13 @@ output "build_policy_arn" {
 }
 
 output "deploy_policy_arn" {
-  description = "IAM policy attached to the deploy role"
-  value       = module.iam_deploy.policy_arn
+  description = "ARN of the core (read/back-end) policy attached to the deploy role"
+  value       = module.iam_deploy.core_policy_arn
+}
+
+output "deploy_manage_policy_arn" {
+  description = "ARN of the mutable permissions policy attached to the deploy role"
+  value       = module.iam_deploy.manage_policy_arn
 }
 
 output "ecr_repo_name_dev" {

@@ -8,6 +8,7 @@
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-local--dev-blueviolet.svg)
 
 A modern, production‑minded **FastAPI** template with a clean path to AWS:
+
 - **Terraform** infra for **ECS Fargate + ALB + ECR** 🏗️
 - **GitHub OIDC** + least‑privilege IAM 🔐
 - **Two pipelines**: build/push Docker → deploy to ECS 🚢
@@ -66,6 +67,7 @@ A modern, production‑minded **FastAPI** template with a clean path to AWS:
 ## 🚀 Quick start
 
 ### Runbook local (ordre recommandé)
+
 1. `infra/bootstrap-create` – backend Terraform (S3/Dynamo/KMS).
 2. `infra/bootstrap-foundation` – GitHub OIDC, IAM build/deploy, création du repo ECR dev.
 3. `.github/workflows/app-ci.yml` – build & push vers ECR (`Check ECR exists` vérifie la présence du repo avant le build).
@@ -73,15 +75,16 @@ A modern, production‑minded **FastAPI** template with a clean path to AWS:
 5. `.github/workflows/app-deploy-dev.yml` – plan/apply Terraform (dev-ecs) via pipeline.
 
 ### 1) One-time AWS bootstrap (local)
+
 ```bash
 # infra/bootstrap-create — remote TF state
 export AWS_PROFILE=bootstrap
 export AWS_REGION=eu-west-3
-export BUCKET_NAME="tfstate-<your-handle>-euw3"   # must be globally unique
+export BUCKET_NAME="tfstate-pi2r-project-euw3"   # must be globally unique
 ./run.sh apply
 
 # infra/bootstrap-foundation — OIDC provider + IAM roles
-export TF_BACKEND_BUCKET="tfstate-<your-handle>-euw3"
+export TF_BACKEND_BUCKET="tfstate-pi2r-project-euw3"
 export TF_BACKEND_DYNAMO_TABLE="terraform-locks"
 export GITHUB_OWNER="TekPi2r"
 export GITHUB_REPO="fastapi-cloud-start-template"
@@ -90,7 +93,9 @@ export GITHUB_REPO="fastapi-cloud-start-template"
 ```
 
 ### 2) Configure GitHub Environment `dev`
+
 Set **environment variables** (non‑secret):
+
 - `AWS_REGION=eu-west-3`
 - `ENVIRONMENT=dev`
 - `NAME_PREFIX=fastapi`
@@ -102,6 +107,7 @@ Set **environment variables** (non‑secret):
 (Optionally require reviewers / wait timer ⏳.)
 
 ### 3) Build & push image (CI)
+
 - Push to `main` → **`app-ci`** runs (`Check ECR exists` stoppe la job si le repo n’est pas encore provisionné) et pousse :
   ```
   <account>.dkr.ecr.<region>.amazonaws.com/fastapi-dev-ecr:{short-sha}
@@ -109,6 +115,7 @@ Set **environment variables** (non‑secret):
   ```
 
 ### 4) Deploy to ECS (CI)
+
 - Manually trigger **`app-deploy-dev`** → choose `IMAGE_TAG` (e.g. `latest-dev`).
 - The workflow plans (exit‑code 2 = “changes”) and applies.
 - The job output prints the **ALB URL** 🌐.

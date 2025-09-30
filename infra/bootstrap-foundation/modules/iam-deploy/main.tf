@@ -1,8 +1,11 @@
 data "aws_partition" "current" {}
 
+#checkov:skip=CKV_AWS_356: ECS/ELB APIs require wildcard resources for Describe operations
 #checkov:skip=CKV_AWS_111: Terraform deploy role needs scoped write permissions for ECS deploy operations
-#checkov:skip=CKV_AWS_356: ECS/ELB APIs require wildcard resources for Describe/Register actions
-data "aws_iam_policy_document" "deploy_min" {
+# Baseline permissions required for Terraform plan/apply that are mostly read or
+# backend related. Mutating actions that create/update runtime resources live in
+# the separate `deploy_manage` policy to stay under the IAM policy size limit.
+data "aws_iam_policy_document" "deploy_core" {
   statement {
     sid    = "KmsUseTfStateKey"
     effect = "Allow"
@@ -31,49 +34,6 @@ data "aws_iam_policy_document" "deploy_min" {
       "kms:ReEncrypt*"
     ]
     resources = [var.kms_locks_key_arn]
-  }
-
-  statement {
-    sid    = "EcsCore"
-    effect = "Allow"
-    actions = [
-      "ecs:DescribeClusters",
-      "ecs:DescribeServices",
-      "ecs:DescribeTaskDefinition",
-      "ecs:ListClusters",
-      "ecs:ListServices",
-      "ecs:ListTaskDefinitions",
-      "ecs:RegisterTaskDefinition",
-      "ecs:DeregisterTaskDefinition",
-      "ecs:UpdateService"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid     = "IamPassOnlyEcsTaskRoles"
-    effect  = "Allow"
-    actions = ["iam:PassRole"]
-    resources = [
-      var.ecs_task_exec_role_arn,
-      var.ecs_task_runtime_role_arn
-    ]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-
-  statement {
-    sid    = "EcrReadRepo"
-    effect = "Allow"
-    actions = [
-      "ecr:BatchGetImage",
-      "ecr:DescribeImages",
-      "ecr:GetDownloadUrlForLayer"
-    ]
-    resources = [var.ecr_repo_arn]
   }
 
   statement {
@@ -112,18 +72,41 @@ data "aws_iam_policy_document" "deploy_min" {
   }
 
   statement {
-    sid    = "Ec2ReadDescribe"
+    sid    = "EcrReadRepo"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:DescribeImages",
+      "ecr:GetDownloadUrlForLayer"
+    ]
+    resources = [var.ecr_repo_arn]
+  }
+
+  statement {
+    sid    = "Ec2Describe"
     effect = "Allow"
     actions = [
       "ec2:DescribeVpcs",
       "ec2:DescribeSubnets",
-      "ec2:DescribeSecurityGroups"
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSecurityGroupRules"
     ]
     resources = ["*"]
   }
 
   statement {
-    sid    = "ElbReadDescribe"
+    sid    = "Ec2ReadVpcAttrs"
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeVpcAttribute",
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeAvailabilityZones"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ElbDescribe"
     effect = "Allow"
     actions = [
       "elasticloadbalancing:DescribeLoadBalancers",
@@ -131,39 +114,41 @@ data "aws_iam_policy_document" "deploy_min" {
       "elasticloadbalancing:DescribeTargetGroups",
       "elasticloadbalancing:DescribeRules",
       "elasticloadbalancing:DescribeTargetHealth",
-      "elasticloadbalancing:DescribeTags"
+      "elasticloadbalancing:DescribeTags",
+      "elasticloadbalancing:DescribeLoadBalancerAttributes",
+      "elasticloadbalancing:DescribeTargetGroupAttributes",
+      "elasticloadbalancing:DescribeListenerAttributes"
     ]
     resources = ["*"]
   }
 
   statement {
-    sid       = "LogsReadDescribe"
-    effect    = "Allow"
-    actions   = ["logs:DescribeLogGroups"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid       = "EcrRepoReadDescribe"
-    effect    = "Allow"
-    actions   = ["ecr:DescribeRepositories"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid     = "IamReadRole"
-    effect  = "Allow"
-    actions = ["iam:GetRole"]
-    resources = [
-      var.ecs_task_exec_role_arn,
-      var.ecs_task_runtime_role_arn
-    ]
-  }
-
-  statement {
-    sid    = "IamListRolePolicies"
+    sid    = "LogsDescribe"
     effect = "Allow"
     actions = [
+      "logs:DescribeLogGroups",
+      "logs:ListTagsForResource"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "EcrDescribe"
+    effect = "Allow"
+    actions = [
+      "ecr:DescribeRepositories",
+      "ecr:ListTagsForResource",
+      "ecr:GetLifecyclePolicy",
+      "ecr:GetLifecyclePolicyPreview"
+    ]
+    resources = [var.ecr_repo_arn]
+  }
+
+  statement {
+    sid    = "IamReadRoles"
+    effect = "Allow"
+    actions = [
+      "iam:GetRole",
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:GetRolePolicy"
@@ -186,58 +171,18 @@ data "aws_iam_policy_document" "deploy_min" {
   }
 
   statement {
-    sid       = "LogsListTagsForResource"
-    effect    = "Allow"
-    actions   = ["logs:ListTagsForResource"]
-    resources = [var.log_group_arn]
-  }
-
-  statement {
-    sid    = "Ec2ReadVpcAttrs"
+    sid    = "CloudWatchAlarms"
     effect = "Allow"
     actions = [
-      "ec2:DescribeVpcAttribute",
-      "ec2:DescribeAccountAttributes",
-      "ec2:DescribeAvailabilityZones"
+      "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:ListMetrics",
+      "cloudwatch:GetMetricData",
+      "cloudwatch:ListTagsForResource",
+      "cloudwatch:TagResource",
+      "cloudwatch:UntagResource"
     ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid       = "EcrListTagsForResource"
-    effect    = "Allow"
-    actions   = ["ecr:ListTagsForResource"]
-    resources = [var.ecr_repo_arn]
-  }
-
-  statement {
-    sid       = "ElbReadAttributesLb"
-    effect    = "Allow"
-    actions   = ["elasticloadbalancing:DescribeLoadBalancerAttributes"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid       = "ElbReadAttributesTg"
-    effect    = "Allow"
-    actions   = ["elasticloadbalancing:DescribeTargetGroupAttributes"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "EcrLifecycleRead"
-    effect = "Allow"
-    actions = [
-      "ecr:GetLifecyclePolicy",
-      "ecr:GetLifecyclePolicyPreview"
-    ]
-    resources = [var.ecr_repo_arn]
-  }
-
-  statement {
-    sid       = "ElbReadListenerAttributes"
-    effect    = "Allow"
-    actions   = ["elasticloadbalancing:DescribeListenerAttributes"]
     resources = ["*"]
   }
 
@@ -250,59 +195,6 @@ data "aws_iam_policy_document" "deploy_min" {
       "ecs:ListTagsForResource"
     ]
     resources = ["arn:aws:ecs:${var.aws_region}:${var.account_id}:*"]
-  }
-
-  statement {
-    sid    = "AppAutoScalingEcs"
-    effect = "Allow"
-    actions = [
-      "application-autoscaling:RegisterScalableTarget",
-      "application-autoscaling:DeregisterScalableTarget",
-      "application-autoscaling:PutScalingPolicy",
-      "application-autoscaling:DeleteScalingPolicy",
-      "application-autoscaling:Describe*"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid       = "IamCreateServiceLinkedRoleForAppAS"
-    effect    = "Allow"
-    actions   = ["iam:CreateServiceLinkedRole"]
-    resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:AWSServiceName"
-      values = [
-        "ecs.amazonaws.com",
-        "application-autoscaling.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com"
-      ]
-    }
-  }
-
-  statement {
-    sid    = "CloudWatchAlarmsManage"
-    effect = "Allow"
-    actions = [
-      "cloudwatch:PutMetricAlarm",
-      "cloudwatch:DeleteAlarms",
-      "cloudwatch:DescribeAlarms",
-      "cloudwatch:ListMetrics",
-      "cloudwatch:GetMetricData"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "CloudWatchAlarmsTagging"
-    effect = "Allow"
-    actions = [
-      "cloudwatch:ListTagsForResource",
-      "cloudwatch:TagResource",
-      "cloudwatch:UntagResource"
-    ]
-    resources = [var.cloudwatch_alarm_arn_pattern]
   }
 
   statement {
@@ -320,13 +212,227 @@ data "aws_iam_policy_document" "deploy_min" {
     actions   = ["application-autoscaling:ListTagsForResource"]
     resources = ["*"]
   }
-
 }
 
-resource "aws_iam_policy" "this" {
-  name        = "${var.role_name}-min"
-  description = "Least privilege IAM policy for Terraform deployments"
-  policy      = data.aws_iam_policy_document.deploy_min.json
+# Mutating permissions kept separate so the IAM policy stays below the 6 KB
+# managed policy size limit.
+#checkov:skip=CKV_AWS_356: Terraform must call write APIs that rely on wildcard resources
+#checkov:skip=CKV_AWS_111: Mutating policy intentionally grants write permissions scoped to runtime resources
+data "aws_iam_policy_document" "deploy_manage" {
+  statement {
+    sid     = "IamPassOnlyEcsTaskRoles"
+    effect  = "Allow"
+    actions = ["iam:PassRole"]
+    resources = [
+      var.ecs_task_exec_role_arn,
+      var.ecs_task_runtime_role_arn
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+
+  statement {
+    sid    = "IamManageEcsTaskRoles"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy"
+    ]
+    resources = [
+      var.ecs_task_exec_role_arn,
+      var.ecs_task_runtime_role_arn
+    ]
+  }
+
+  statement {
+    sid    = "EcsManage"
+    effect = "Allow"
+    actions = [
+      "ecs:CreateCluster",
+      "ecs:DeleteCluster",
+      "ecs:CreateService",
+      "ecs:DeleteService",
+      "ecs:UpdateService",
+      "ecs:RegisterTaskDefinition",
+      "ecs:DeregisterTaskDefinition"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AppAutoScalingManage"
+    effect = "Allow"
+    actions = [
+      "application-autoscaling:RegisterScalableTarget",
+      "application-autoscaling:DeregisterScalableTarget",
+      "application-autoscaling:PutScalingPolicy",
+      "application-autoscaling:DeleteScalingPolicy",
+      "application-autoscaling:Describe*"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "ServiceLinkedRole"
+    effect    = "Allow"
+    actions   = ["iam:CreateServiceLinkedRole"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values = [
+        "ecs.amazonaws.com",
+        "application-autoscaling.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com"
+      ]
+    }
+  }
+
+  statement {
+    sid       = "S3CreateAlbLogsBucket"
+    effect    = "Allow"
+    actions   = ["s3:CreateBucket"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "S3ManageAlbLogsBucket"
+    effect = "Allow"
+    actions = [
+      "s3:DeleteBucket",
+      "s3:PutBucketOwnershipControls",
+      "s3:GetBucketOwnershipControls",
+      "s3:DeleteBucketOwnershipControls",
+      "s3:PutBucketVersioning",
+      "s3:GetBucketVersioning",
+      "s3:PutEncryptionConfiguration",
+      "s3:GetEncryptionConfiguration",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:GetBucketPublicAccessBlock",
+      "s3:PutBucketAcl",
+      "s3:GetBucketAcl",
+      "s3:PutBucketPolicy",
+      "s3:GetBucketPolicy",
+      "s3:DeleteBucketPolicy",
+      "s3:PutBucketLogging",
+      "s3:GetBucketLogging",
+      "s3:PutLifecycleConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:PutBucketTagging",
+      "s3:GetBucketTagging",
+      "s3:DeleteBucketTagging",
+      "s3:GetBucketLocation",
+      "s3:ListBucket"
+    ]
+    resources = [var.alb_log_bucket_arn]
+  }
+
+  statement {
+    sid    = "S3ManageAlbLogsObjects"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:GetObject",
+      "s3:GetObjectVersion"
+    ]
+    resources = [var.alb_log_bucket_objects_arn]
+  }
+
+  statement {
+    sid    = "CloudWatchLogsManage"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:DeleteLogGroup",
+      "logs:PutRetentionPolicy",
+      "logs:PutResourcePolicy",
+      "logs:DeleteResourcePolicy"
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:*"]
+  }
+
+  statement {
+    sid    = "Ec2ManageNetworking"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateSecurityGroup",
+      "ec2:DeleteSecurityGroup",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+      "ec2:CreateVpcEndpoint",
+      "ec2:DeleteVpcEndpoints",
+      "ec2:ModifyVpcEndpoint"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ElbManage"
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:CreateLoadBalancer",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:ModifyLoadBalancerAttributes",
+      "elasticloadbalancing:CreateTargetGroup",
+      "elasticloadbalancing:DeleteTargetGroup",
+      "elasticloadbalancing:CreateListener",
+      "elasticloadbalancing:DeleteListener",
+      "elasticloadbalancing:ModifyListener",
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:RemoveTags"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "KmsManageEnvKeys"
+    effect = "Allow"
+    actions = [
+      "kms:CreateKey",
+      "kms:ScheduleKeyDeletion",
+      "kms:CancelKeyDeletion",
+      "kms:EnableKey",
+      "kms:DisableKey",
+      "kms:TagResource",
+      "kms:UntagResource",
+      "kms:PutKeyPolicy",
+      "kms:DescribeKey",
+      "kms:GetKeyPolicy",
+      "kms:ListResourceTags",
+      "kms:ListAliases",
+      "kms:CreateAlias",
+      "kms:UpdateAlias",
+      "kms:DeleteAlias"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "core" {
+  name        = "${var.role_name}-core"
+  description = "Read/back-end permissions for Terraform deploy role"
+  policy      = data.aws_iam_policy_document.deploy_core.json
+  tags        = var.tags
+}
+
+resource "aws_iam_policy" "manage" {
+  name        = "${var.role_name}-manage"
+  description = "Mutable permissions for Terraform deploy role"
+  policy      = data.aws_iam_policy_document.deploy_manage.json
   tags        = var.tags
 }
 
@@ -336,7 +442,12 @@ resource "aws_iam_role" "this" {
   tags               = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "this" {
+resource "aws_iam_role_policy_attachment" "core" {
   role       = aws_iam_role.this.name
-  policy_arn = aws_iam_policy.this.arn
+  policy_arn = aws_iam_policy.core.arn
+}
+
+resource "aws_iam_role_policy_attachment" "manage" {
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.manage.arn
 }

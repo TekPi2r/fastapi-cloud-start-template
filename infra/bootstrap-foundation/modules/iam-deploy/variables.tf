@@ -72,3 +72,14 @@ variable "cloudwatch_alarm_arn_pattern" {
   description = "ARN pattern for CloudWatch alarms managed by Terraform"
   type        = string
 }
+
+variable "alb_log_bucket_arn" {
+  description = "ARN of the ALB access logs bucket"
+  type        = string
+}
+
+variable "alb_log_bucket_objects_arn" {
+  description = "ARN of objects within the ALB access logs bucket"
+  type        = string
+}
+

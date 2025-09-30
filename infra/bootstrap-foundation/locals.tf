@@ -31,4 +31,6 @@ locals {
 
   log_group_arn                = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:${local.log_group_name}"
   cloudwatch_alarm_arn_pattern = "arn:aws:cloudwatch:${var.aws_region}:${local.account_id}:alarm:${local.name}-*"
+  alb_logs_bucket_arn          = "arn:aws:s3:::${local.name}-alb-logs"
+  alb_logs_bucket_objects_arn  = "arn:aws:s3:::${local.name}-alb-logs/*"
 }

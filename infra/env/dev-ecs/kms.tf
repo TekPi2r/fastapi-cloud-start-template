@@ -1,25 +1,49 @@
+data "aws_iam_policy_document" "kms_logs" {
+  statement {
+    sid    = "AccountRoot"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = [local.kms_account_root]
+    }
+
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowCloudWatchLogs"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = [format("logs.%s.%s", var.aws_region, data.aws_partition.current.dns_suffix)]
+    }
+
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:${data.aws_partition.current.partition}:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}:*"]
+    }
+  }
+}
+
 resource "aws_kms_key" "logs" {
   description         = "KMS key for CloudWatch logs"
   enable_key_rotation = true
-
-  policy = <<POLICY
-  {
-    "Version": "2025-08-26",
-    "Id": "default",
-    "Statement": [
-      {
-        "Sid": "DefaultAllow",
-        "Effect": "Allow",
-        "Principal": {
-        },
-        "Action": "kms:*",
-        "Resource": "*"
-      }
-    ]
-  }
-POLICY
-
-  tags = local.tags
+  policy              = data.aws_iam_policy_document.kms_logs.json
+  tags                = local.tags
 }
 
 resource "aws_kms_alias" "logs" {
@@ -30,7 +54,7 @@ resource "aws_kms_alias" "logs" {
 
 data "aws_iam_policy_document" "kms_alb_logs" {
   statement {
-    sid    = "AllowAccountAdministration"
+    sid    = "AccountRoot"
     effect = "Allow"
 
     principals {
@@ -38,35 +62,8 @@ data "aws_iam_policy_document" "kms_alb_logs" {
       identifiers = [local.kms_account_root]
     }
 
-    actions = [
-      "kms:CancelKeyDeletion",
-      "kms:CreateAlias",
-      "kms:DeleteAlias",
-      "kms:DescribeKey",
-      "kms:DisableKey",
-      "kms:DisableKeyRotation",
-      "kms:EnableKey",
-      "kms:EnableKeyRotation",
-      "kms:GetKeyPolicy",
-      "kms:GetKeyRotationStatus",
-      "kms:ListAliases",
-      "kms:ListGrants",
-      "kms:ListKeyPolicies",
-      "kms:ListResourceTags",
-      "kms:PutKeyPolicy",
-      "kms:ScheduleKeyDeletion",
-      "kms:TagResource",
-      "kms:UntagResource",
-      "kms:UpdateAlias"
-    ]
-
-    resources = [local.kms_key_arn_wildcard]
-
-    condition {
-      test     = "ForAnyValue:StringLike"
-      variable = "kms:ResourceAliases"
-      values   = [local.kms_alb_logs_alias_name]
-    }
+    actions   = ["kms:*"]
+    resources = ["*"]
   }
 
   statement {
@@ -87,7 +84,7 @@ data "aws_iam_policy_document" "kms_alb_logs" {
       "kms:ReEncrypt*"
     ]
 
-    resources = [local.kms_key_arn_wildcard]
+    resources = ["*"]
 
     condition {
       test     = "StringEquals"
@@ -99,12 +96,6 @@ data "aws_iam_policy_document" "kms_alb_logs" {
       test     = "StringEquals"
       variable = "kms:ViaService"
       values   = [format("s3.%s.%s", var.aws_region, data.aws_partition.current.dns_suffix)]
-    }
-
-    condition {
-      test     = "ForAnyValue:StringLike"
-      variable = "kms:ResourceAliases"
-      values   = [local.kms_alb_logs_alias_name]
     }
 
     condition {
