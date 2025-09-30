@@ -4,7 +4,7 @@ This folder contains all Terraform code and helper scripts to provision and oper
 
 > **TL;DR**
 > - Local (one‑time): `bootstrap-create/` then `bootstrap-foundation/` 🧱  
-> - App infra: `dev-ecs/` (local for first run, CI for subsequent changes) 🧩  
+> - App infra: `env/dev-ecs/` (local for first run, CI for subsequent changes) 🧩  
 > - Pipelines: `.github/workflows/{app-ci.yml, app-deploy-dev.yml}` 🐳⚙️
 
 ---
@@ -31,14 +31,15 @@ export AWS_REGION="eu-west-3"
 infra/
 ├─ bootstrap-create/        # S3 state bucket + DynamoDB locks (one-time, local)
 ├─ bootstrap-foundation/    # GitHub OIDC provider + IAM build/deploy roles (local)
-└─ dev-ecs/                 # ECR, ECS, ALB, roles, networking (local & CI)
+└─ env/
+   └─ dev-ecs/              # ECS runtime (network, ALB, ECS/Fargate, logs, autoscaling)
 ```
 
 - **bootstrap-create/**: Creates the Terraform backend (S3 + DynamoDB). No app resources.
 - **bootstrap-foundation/**: Creates the GitHub OIDC provider and two least‑privilege IAM roles:
   - `fastapi-dev-build` → used by CI to **build & push** Docker images to ECR.
-  - `fastapi-dev-deploy` → used by CI to **plan/apply** Terraform in `infra/dev-ecs`.
-- **dev-ecs/**: The actual app infra (ECR repo, ECS cluster/service/task definition, ALB, log group, SGs).
+  - `fastapi-dev-deploy` → used by CI to **plan/apply** Terraform in `infra/env/dev-ecs`.
+- **env/dev-ecs/**: The actual app infra (ECR repo, ECS cluster/service/task definition, ALB, log group, SGs).
 
 ---
 
@@ -96,8 +97,8 @@ Located in `.github/workflows/`:
 ### 2) `app-deploy-dev.yml` — Plan & apply Terraform ⚙️
 - **Trigger**: manual **workflow_dispatch** (recommended) or on demand.
 - **Role**: `AWS_ROLE_DEPLOY_ARN` (environment `dev`).
-- **Plan**: Runs `infra/dev-ecs/run.sh plan` — exit code **2** is treated as “changes found” (✅).
-- **Apply**: Runs `infra/dev-ecs/run.sh apply`, updates the task definition to the selected `IMAGE_TAG`.
+- **Plan**: Runs `infra/env/dev-ecs/run.sh plan` — exit code **2** is treated as “changes found” (✅).
+- **Apply**: Runs `infra/env/dev-ecs/run.sh apply`, updates the task definition to the selected `IMAGE_TAG`.
 - **Output**: ALB URL (e.g., `http://fastapi-dev-alb-XXXX.eu-west-3.elb.amazonaws.com/`).
 
 > The `dev` **Environment** provides gated approvals 🙋‍♂️ and safely scoped variables.
@@ -147,7 +148,7 @@ Optional protection:
 
 3. **App infra** — First run local (optional), then CI:
    ```bash
-   # infra/dev-ecs (local optional first run)
+   # infra/env/dev-ecs (local optional first run)
    export AWS_PROFILE=bootstrap
    export AWS_REGION=eu-west-3
    export TF_BACKEND_BUCKET="<bucket>"
@@ -161,7 +162,7 @@ Optional protection:
 
 ---
 
-## 🔧 `dev-ecs/run.sh` cheatsheet
+## 🔧 `env/dev-ecs/run.sh` cheatsheet
 
 ```bash
 ./run.sh check                # preflight (aws/terraform present + backend vars)
@@ -199,7 +200,7 @@ Key envs (auto‑computed when possible):
 
 1) **App infra** (safe to repeat):
 ```bash
-cd infra/dev-ecs
+cd infra/env/dev-ecs
 ./run.sh destroy
 ```
 
@@ -239,3 +240,84 @@ cd ../bootstrap-create
 - [x] ALB URL returns `200 OK`
 
 Happy shipping! 🚀
+
+---
+
+## 🔄 State migration cheat sheet
+
+Coming from the previous `infra/dev-ecs` layout, run the `state mv` commands **before** your next `plan` so Terraform keeps the existing resources:
+
+### Foundation (run in `infra/bootstrap-foundation`)
+
+```bash
+terraform state mv aws_ecr_repository.fastapi_dev \
+  module.ecr_dev.aws_ecr_repository.this
+terraform state mv aws_ecr_lifecycle_policy.fastapi_dev \
+  module.ecr_dev.aws_ecr_lifecycle_policy.this
+terraform state mv aws_iam_role.fastapi_build \
+  module.iam_build.aws_iam_role.this
+terraform state mv aws_iam_policy.fastapi_build_min \
+  module.iam_build.aws_iam_policy.this
+terraform state mv aws_iam_role_policy_attachment.fastapi_build_attach \
+  module.iam_build.aws_iam_role_policy_attachment.this
+terraform state mv aws_iam_role.fastapi_deploy \
+  module.iam_deploy.aws_iam_role.this
+terraform state mv aws_iam_policy.fastapi_deploy_min \
+  module.iam_deploy.aws_iam_policy.this
+terraform state mv aws_iam_role_policy_attachment.fastapi_deploy_attach \
+  module.iam_deploy.aws_iam_role_policy_attachment.this
+terraform state mv aws_iam_openid_connect_provider.github \
+  module.github_oidc.aws_iam_openid_connect_provider.github
+```
+
+### Runtime env (`infra/env/dev-ecs`)
+
+```bash
+terraform state mv aws_security_group.alb \
+  module.network.aws_security_group.alb
+terraform state mv aws_security_group.ecs_tasks \
+  module.network.aws_security_group.ecs_tasks
+terraform state mv aws_security_group.vpce \
+  module.network.aws_security_group.vpce
+terraform state mv aws_security_group_rule.alb_to_ecs_tasks \
+  module.network.aws_security_group_rule.alb_to_ecs_tasks
+terraform state mv aws_security_group_rule.ecs_tasks_from_alb \
+  module.network.aws_security_group_rule.ecs_tasks_from_alb
+terraform state mv aws_security_group_rule.ecs_tasks_to_vpce \
+  module.network.aws_security_group_rule.ecs_tasks_to_vpce
+terraform state mv aws_security_group_rule.vpce_from_ecs_tasks \
+  module.network.aws_security_group_rule.vpce_from_ecs_tasks
+# VPC endpoints -> update the <region> placeholder
+terraform state mv 'aws_vpc_endpoint.interfaces["com.amazonaws.<region>.ecr.api"]' \
+  'module.network.aws_vpc_endpoint.interfaces["com.amazonaws.<region>.ecr.api"]'
+# …repeat for each service (ecr.dkr, logs, ssm, ssmmessages, ec2messages)
+terraform state mv aws_lb.app \
+  module.alb.aws_lb.this
+terraform state mv aws_lb_target_group.app \
+  module.alb.aws_lb_target_group.this
+terraform state mv aws_lb_listener.http \
+  module.alb.aws_lb_listener.http
+# (if HTTPS listener exists)
+terraform state mv aws_lb_listener.https \
+  module.alb.aws_lb_listener.https
+terraform state mv aws_s3_bucket.alb_logs \
+  module.alb.aws_s3_bucket.logs
+terraform state mv aws_s3_bucket_public_access_block.alb_logs \
+  module.alb.aws_s3_bucket_public_access_block.logs
+terraform state mv aws_s3_bucket_ownership_controls.alb_logs \
+  module.alb.aws_s3_bucket_ownership_controls.logs
+terraform state mv aws_s3_bucket_versioning.alb_logs \
+  module.alb.aws_s3_bucket_versioning.logs
+terraform state mv aws_s3_bucket_server_side_encryption_configuration.alb_logs \
+  module.alb.aws_s3_bucket_server_side_encryption_configuration.logs
+terraform state mv aws_s3_bucket_policy.alb_logs \
+  module.alb.aws_s3_bucket_policy.logs
+terraform state mv aws_ecs_cluster.this \
+  module.ecs.aws_ecs_cluster.this
+terraform state mv aws_ecs_task_definition.api \
+  module.ecs.aws_ecs_task_definition.this
+terraform state mv aws_ecs_service.api \
+  module.ecs.aws_ecs_service.this
+```
+
+> Tip: if a resource is already missing from the old state, use `terraform import` with the new address instead of `state mv`.
