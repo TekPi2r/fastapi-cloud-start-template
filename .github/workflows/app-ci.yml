@@ -70,16 +70,6 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_BUILD_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check ECR exists
-        shell: bash
-        run: |
-          aws ecr describe-repositories \
-            --repository-names "${ECR_REPO}" \
-            --region "${AWS_REGION}" >/dev/null 2>&1 || {
-              echo "ECR '${ECR_REPO}' is missing. Run bootstrap-foundation apply first."
-              exit 1
-            }
-
       - name: Compute ECR repo URL & tag
         id: meta
         shell: bash
