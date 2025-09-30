@@ -33,6 +33,44 @@ locals {
   }
 }
 
+# --- ECR repository for CI builds ---
+resource "aws_ecr_repository" "fastapi_dev" {
+  name                 = local.ecr_repo_name
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "KMS"
+  }
+
+  tags = {
+    Name        = local.ecr_repo_name
+    Environment = local.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "fastapi_dev" {
+  repository = aws_ecr_repository.fastapi_dev.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Expire untagged images older than 14 days"
+      selection = {
+        tagStatus   = "untagged"
+        countType   = "sinceImagePushed"
+        countUnit   = "days"
+        countNumber = 14
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
+
 # --- GitHub OIDC provider (one per account) ---
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"

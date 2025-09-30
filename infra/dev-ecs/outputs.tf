@@ -1,5 +1,5 @@
 output "ecr_repo_url" {
-  value       = aws_ecr_repository.api.repository_url
+  value       = data.aws_ecr_repository.fastapi_dev.repository_url
   description = "ECR repository URL"
 }
 

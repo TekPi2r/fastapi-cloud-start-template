@@ -12,3 +12,13 @@ output "deploy_role_arn" {
   description = "Role to assume in GitHub Actions for the Deploy pipeline"
   value       = aws_iam_role.fastapi_deploy.arn
 }
+
+output "ecr_repo_name_dev" {
+  description = "Name of the dev ECR repository"
+  value       = aws_ecr_repository.fastapi_dev.name
+}
+
+output "ecr_repo_arn_dev" {
+  description = "ARN of the dev ECR repository"
+  value       = aws_ecr_repository.fastapi_dev.arn
+}
