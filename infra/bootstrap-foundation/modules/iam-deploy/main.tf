@@ -90,7 +90,8 @@ data "aws_iam_policy_document" "deploy_core" {
       "ec2:DescribeSubnets",
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeSecurityGroupRules",
-      "ec2:DescribeVpcEndpoints"
+      "ec2:DescribeVpcEndpoints",
+      "ec2:DescribePrefixLists"
     ]
     resources = ["*"]
   }
