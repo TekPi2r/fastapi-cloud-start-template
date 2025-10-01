@@ -62,7 +62,10 @@ data "aws_iam_policy_document" "logs_bucket" {
     effect = "Allow"
     principals {
       type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
+      identifiers = [
+        "delivery.logs.amazonaws.com",
+        "logdelivery.elb.amazonaws.com"
+      ]
     }
     actions   = ["s3:GetBucketAcl", "s3:GetBucketPolicyStatus"]
     resources = [aws_s3_bucket.logs.arn]
@@ -78,7 +81,10 @@ data "aws_iam_policy_document" "logs_bucket" {
     effect = "Allow"
     principals {
       type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
+      identifiers = [
+        "delivery.logs.amazonaws.com",
+        "logdelivery.elb.amazonaws.com"
+      ]
     }
     actions = ["s3:PutObject"]
     resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${var.account_id}/*"]

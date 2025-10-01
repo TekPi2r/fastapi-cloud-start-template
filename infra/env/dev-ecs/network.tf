@@ -11,9 +11,10 @@ module "network" {
 
 locals {
   effective_vpc_id = module.network.vpc_id
-  private_subnets  = module.network.private_subnet_ids
   public_subnets   = module.network.public_subnet_ids
   selected_subnets = module.network.selected_public_subnet_ids
+
+  private_subnets = length(module.network.private_subnet_ids) > 0 ? module.network.private_subnet_ids : local.selected_subnets
 
   alb_security_group_id  = module.network.alb_security_group_id
   ecs_security_group_id  = module.network.ecs_security_group_id
