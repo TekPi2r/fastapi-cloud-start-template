@@ -64,23 +64,14 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = [
         "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com"
+        "logdelivery.elb.amazonaws.com"
       ]
     }
     actions = [
       "s3:GetBucketAcl",
-      "s3:GetBucketPolicy",
-      "s3:GetBucketPolicyStatus",
-      "s3:GetBucketLocation",
-      "s3:ListBucket"
+      "s3:GetBucketPolicy"
     ]
     resources = [aws_s3_bucket.logs.arn]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [var.account_id]
-    }
   }
 
   statement {
@@ -90,8 +81,7 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = [
         "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com"
+        "logdelivery.elb.amazonaws.com"
       ]
     }
     actions = ["s3:PutObject"]
