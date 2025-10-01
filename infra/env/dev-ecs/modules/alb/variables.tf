@@ -50,3 +50,13 @@ variable "log_bucket_kms_key_arn" {
   description = "ARN of the KMS key encrypting ALB access logs"
   type        = string
 }
+
+variable "account_id" {
+  description = "AWS account ID used for bucket policies"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region for conditional bucket policies"
+  type        = string
+}

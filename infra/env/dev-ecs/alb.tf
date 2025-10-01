@@ -11,4 +11,6 @@ module "alb" {
   acm_certificate_arn    = var.acm_certificate_arn
   log_bucket_name        = "${var.name_prefix}-${var.environment}-alb-logs"
   log_bucket_kms_key_arn = aws_kms_key.alb_logs.arn
+  account_id             = data.aws_caller_identity.current.account_id
+  aws_region             = var.aws_region
 }

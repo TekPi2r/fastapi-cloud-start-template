@@ -371,6 +371,7 @@ data "aws_iam_policy_document" "deploy_manage" {
     sid    = "CloudWatchLogsManage"
     effect = "Allow"
     actions = [
+      "logs:TagResource",
       "logs:CreateLogGroup",
       "logs:DeleteLogGroup",
       "logs:PutRetentionPolicy",
