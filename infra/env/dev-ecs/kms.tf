@@ -34,7 +34,10 @@ data "aws_iam_policy_document" "kms_logs" {
     condition {
       test     = "ArnLike"
       variable = "kms:EncryptionContext:aws:logs:arn"
-      values   = ["arn:${data.aws_partition.current.partition}:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}:*"]
+      values   = [
+        "arn:${data.aws_partition.current.partition}:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}",
+        "arn:${data.aws_partition.current.partition}:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}:*"
+      ]
     }
   }
 }
@@ -72,7 +75,10 @@ data "aws_iam_policy_document" "kms_alb_logs" {
 
     principals {
       type        = "Service"
-      identifiers = ["s3.amazonaws.com"]
+      identifiers = [
+        "delivery.logs.amazonaws.com",
+        "logdelivery.elb.amazonaws.com"
+      ]
     }
 
     actions = [
