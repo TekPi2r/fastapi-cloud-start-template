@@ -125,6 +125,8 @@ resource "aws_lb" "this" {
   drop_invalid_header_fields = true
   enable_deletion_protection = true
 
+  depends_on = [aws_s3_bucket_policy.logs]
+
   tags = merge(var.tags, { Name = "${var.name}-alb" })
 }
 
