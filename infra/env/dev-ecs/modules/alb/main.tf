@@ -64,11 +64,13 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = [
         "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com"
+        "logdelivery.elb.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com"
       ]
     }
     actions = [
       "s3:GetBucketAcl",
+      "s3:GetBucketPolicy",
       "s3:GetBucketPolicyStatus",
       "s3:GetBucketLocation"
     ]
