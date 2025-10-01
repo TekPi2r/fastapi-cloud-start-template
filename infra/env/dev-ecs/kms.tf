@@ -75,12 +75,7 @@ data "aws_iam_policy_document" "kms_alb_logs" {
 
     principals {
       type        = "Service"
-      identifiers = [
-        "s3.amazonaws.com",
-        "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com"
-      ]
+      identifiers = ["s3.amazonaws.com"]
     }
 
     actions = [
@@ -110,6 +105,36 @@ data "aws_iam_policy_document" "kms_alb_logs" {
       test     = "StringLike"
       variable = "kms:EncryptionContext:aws:s3:arn"
       values   = ["arn:${data.aws_partition.current.partition}:s3:::${var.name_prefix}-${var.environment}-alb-logs/*"]
+    }
+  }
+
+  statement {
+    sid    = "AllowELBLogDeliveryUseOfKey"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = [
+        "logdelivery.elb.amazonaws.com",
+        "delivery.logs.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com"
+      ]
+    }
+
+    actions = [
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+      "kms:GenerateDataKeyWithoutPlaintext",
+      "kms:ReEncrypt*",
+      "kms:DescribeKey"
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
     }
   }
 }

@@ -58,49 +58,36 @@ data "aws_iam_policy_document" "logs_bucket" {
   }
 
   statement {
-    sid    = "AllowElbLogsAclChecks"
-    effect = "Allow"
-    principals {
-      type        = "Service"
-      identifiers = [
-        "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com"
-      ]
-    }
-    actions = [
-      "s3:GetBucketAcl",
-      "s3:GetBucketPolicy"
-    ]
-    resources = [aws_s3_bucket.logs.arn]
-  }
-
-  statement {
     sid    = "AllowElbLogsDelivery"
     effect = "Allow"
     principals {
       type        = "Service"
       identifiers = [
-        "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com"
+        "logdelivery.elb.amazonaws.com",
+        "delivery.logs.amazonaws.com"
       ]
     }
-    actions = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${var.account_id}/*"]
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.logs.arn}/*"]
     condition {
       test     = "StringEquals"
       variable = "s3:x-amz-acl"
       values   = ["bucket-owner-full-control"]
     }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [var.account_id]
+  }
+
+  statement {
+    sid    = "AllowElbLogsAclChecks"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = [
+        "logdelivery.elb.amazonaws.com",
+        "delivery.logs.amazonaws.com"
+      ]
     }
-    condition {
-      test     = "ArnLike"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:elasticloadbalancing:${var.aws_region}:${var.account_id}:loadbalancer/app/${var.name}-alb/*"]
-    }
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.logs.arn]
   }
 }
 
