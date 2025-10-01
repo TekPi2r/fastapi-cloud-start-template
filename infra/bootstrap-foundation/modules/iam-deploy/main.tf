@@ -338,6 +338,7 @@ data "aws_iam_policy_document" "deploy_manage" {
       "s3:PutBucketLogging",
       "s3:GetBucketLogging",
       "s3:GetBucketWebsite",
+      "s3:GetAccelerateConfiguration",
       "s3:PutLifecycleConfiguration",
       "s3:GetLifecycleConfiguration",
       "s3:GetBucketCORS",
