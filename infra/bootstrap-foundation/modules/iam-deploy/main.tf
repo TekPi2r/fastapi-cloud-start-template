@@ -89,7 +89,8 @@ data "aws_iam_policy_document" "deploy_core" {
       "ec2:DescribeVpcs",
       "ec2:DescribeSubnets",
       "ec2:DescribeSecurityGroups",
-      "ec2:DescribeSecurityGroupRules"
+      "ec2:DescribeSecurityGroupRules",
+      "ec2:DescribeVpcEndpoints"
     ]
     resources = ["*"]
   }
@@ -195,6 +196,17 @@ data "aws_iam_policy_document" "deploy_core" {
       "ecs:ListTagsForResource"
     ]
     resources = ["arn:aws:ecs:${var.aws_region}:${var.account_id}:*"]
+  }
+
+  statement {
+    sid    = "EcsDescribe"
+    effect = "Allow"
+    actions = [
+      "ecs:DescribeClusters",
+      "ecs:DescribeServices",
+      "ecs:DescribeTaskDefinition"
+    ]
+    resources = ["*"]
   }
 
   statement {
@@ -326,6 +338,7 @@ data "aws_iam_policy_document" "deploy_manage" {
       "s3:GetBucketLogging",
       "s3:PutLifecycleConfiguration",
       "s3:GetLifecycleConfiguration",
+      "s3:GetBucketCORS",
       "s3:PutBucketTagging",
       "s3:GetBucketTagging",
       "s3:DeleteBucketTagging",
@@ -388,6 +401,7 @@ data "aws_iam_policy_document" "deploy_manage" {
       "elasticloadbalancing:DeleteLoadBalancer",
       "elasticloadbalancing:ModifyLoadBalancerAttributes",
       "elasticloadbalancing:CreateTargetGroup",
+      "elasticloadbalancing:ModifyTargetGroupAttributes",
       "elasticloadbalancing:DeleteTargetGroup",
       "elasticloadbalancing:CreateListener",
       "elasticloadbalancing:DeleteListener",
@@ -407,6 +421,8 @@ data "aws_iam_policy_document" "deploy_manage" {
       "kms:CancelKeyDeletion",
       "kms:EnableKey",
       "kms:DisableKey",
+      "kms:EnableKeyRotation",
+      "kms:DisableKeyRotation",
       "kms:TagResource",
       "kms:UntagResource",
       "kms:PutKeyPolicy",
