@@ -76,6 +76,7 @@ data "aws_iam_policy_document" "kms_alb_logs" {
     principals {
       type        = "Service"
       identifiers = [
+        "s3.amazonaws.com",
         "delivery.logs.amazonaws.com",
         "logdelivery.elb.amazonaws.com"
       ]

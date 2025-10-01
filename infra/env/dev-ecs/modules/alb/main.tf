@@ -67,7 +67,11 @@ data "aws_iam_policy_document" "logs_bucket" {
         "logdelivery.elb.amazonaws.com"
       ]
     }
-    actions   = ["s3:GetBucketAcl", "s3:GetBucketPolicyStatus"]
+    actions = [
+      "s3:GetBucketAcl",
+      "s3:GetBucketPolicyStatus",
+      "s3:GetBucketLocation"
+    ]
     resources = [aws_s3_bucket.logs.arn]
     condition {
       test     = "StringEquals"
