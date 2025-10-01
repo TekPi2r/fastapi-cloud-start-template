@@ -36,10 +36,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   bucket = aws_s3_bucket.logs.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.log_bucket_kms_key_arn
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -88,7 +86,7 @@ data "aws_iam_policy_document" "logs_bucket" {
     condition {
       test     = "ArnLike"
       variable = "aws:SourceArn"
-      values   = ["arn:aws:elasticloadbalancing:${var.aws_region}:${var.account_id}:loadbalancer/app/${var.name}-alb/*"]
+      values   = ["arn:aws:elasticloadbalancing:${var.aws_region}:${var.account_id}:loadbalancer/app/*"]
     }
   }
 
@@ -126,7 +124,7 @@ resource "aws_lb" "this" {
   subnets            = var.subnet_ids
 
   access_logs {
-    bucket  = aws_s3_bucket.logs.id
+    bucket  = aws_s3_bucket.logs.bucket
     enabled = true
   }
 
@@ -136,7 +134,8 @@ resource "aws_lb" "this" {
   depends_on = [
     aws_s3_bucket_policy.logs,
     aws_s3_bucket_acl.logs,
-    aws_s3_bucket_ownership_controls.logs
+    aws_s3_bucket_ownership_controls.logs,
+    aws_s3_bucket_server_side_encryption_configuration.logs
   ]
 
   tags = merge(var.tags, { Name = "${var.name}-alb" })
