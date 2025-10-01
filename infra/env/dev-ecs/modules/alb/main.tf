@@ -21,6 +21,12 @@ resource "aws_s3_bucket_ownership_controls" "logs" {
   rule { object_ownership = "BucketOwnerPreferred" }
 }
 
+resource "aws_s3_bucket_acl" "logs" {
+  bucket     = aws_s3_bucket.logs.id
+  acl        = "private"
+  depends_on = [aws_s3_bucket_ownership_controls.logs]
+}
+
 resource "aws_s3_bucket_versioning" "logs" {
   bucket = aws_s3_bucket.logs.id
   versioning_configuration { status = "Enabled" }
@@ -74,6 +80,16 @@ data "aws_iam_policy_document" "logs_bucket" {
       variable = "s3:x-amz-acl"
       values   = ["bucket-owner-full-control"]
     }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [var.account_id]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:elasticloadbalancing:${var.aws_region}:${var.account_id}:loadbalancer/app/${var.name}-alb/*"]
+    }
   }
 
   statement {
@@ -88,6 +104,11 @@ data "aws_iam_policy_document" "logs_bucket" {
     }
     actions   = ["s3:GetBucketAcl"]
     resources = [aws_s3_bucket.logs.arn]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [var.account_id]
+    }
   }
 }
 
@@ -112,7 +133,11 @@ resource "aws_lb" "this" {
   drop_invalid_header_fields = true
   enable_deletion_protection = true
 
-  depends_on = [aws_s3_bucket_policy.logs]
+  depends_on = [
+    aws_s3_bucket_policy.logs,
+    aws_s3_bucket_acl.logs,
+    aws_s3_bucket_ownership_controls.logs
+  ]
 
   tags = merge(var.tags, { Name = "${var.name}-alb" })
 }

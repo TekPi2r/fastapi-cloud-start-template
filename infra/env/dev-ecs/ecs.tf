@@ -1,6 +1,8 @@
 module "ecs" {
   source = "./modules/ecs-service"
 
+  depends_on = [module.alb]
+
   name               = local.name
   tags               = local.tags
   aws_region         = var.aws_region
