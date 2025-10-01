@@ -78,7 +78,8 @@ data "aws_iam_policy_document" "kms_alb_logs" {
       identifiers = [
         "s3.amazonaws.com",
         "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com"
+        "logdelivery.elb.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com"
       ]
     }
 

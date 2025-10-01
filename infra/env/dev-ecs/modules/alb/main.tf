@@ -18,7 +18,7 @@ resource "aws_s3_bucket_public_access_block" "logs" {
 
 resource "aws_s3_bucket_ownership_controls" "logs" {
   bucket = aws_s3_bucket.logs.id
-  rule { object_ownership = "BucketOwnerEnforced" }
+  rule { object_ownership = "BucketOwnerPreferred" }
 }
 
 resource "aws_s3_bucket_versioning" "logs" {
@@ -72,7 +72,8 @@ data "aws_iam_policy_document" "logs_bucket" {
       "s3:GetBucketAcl",
       "s3:GetBucketPolicy",
       "s3:GetBucketPolicyStatus",
-      "s3:GetBucketLocation"
+      "s3:GetBucketLocation",
+      "s3:ListBucket"
     ]
     resources = [aws_s3_bucket.logs.arn]
     condition {
@@ -89,7 +90,8 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = [
         "delivery.logs.amazonaws.com",
-        "logdelivery.elb.amazonaws.com"
+        "logdelivery.elb.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com"
       ]
     }
     actions = ["s3:PutObject"]
